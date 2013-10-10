@@ -25,5 +25,8 @@ def global_data_class():
     g.data_class = data_class
 
 
+if 'APPENGINE' in os.environ.keys():
+    from google.appengine.ext.webapp.util import run_wsgi_app
+    run_wsgi_app(app)
 if __name__ == '__main__':
     app.run()
