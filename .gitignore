@@ -1,3 +1,14 @@
+*~
 venv
 *.pyc
 
+# Ignore gae module ln-s.
+flask
+requests
+werkzeug
+jinja2
+markupsafe
+itsdangerous.py
+flask_login.py
+flask_wtf
+wtforms
