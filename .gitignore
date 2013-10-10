@@ -9,6 +9,5 @@ werkzeug
 jinja2
 markupsafe
 itsdangerous.py
-flask_login.py
-flask_wtf
-wtforms
+bson
+pymongo

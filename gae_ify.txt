@@ -4,3 +4,5 @@ ln -s venv/lib/python2.7/site-packages/werkzeug werkzeug
 ln -s venv/lib/python2.7/site-packages/jinja2 jinja2
 ln -s venv/lib/python2.7/site-packages/markupsafe markupsafe
 ln -s venv/lib/python2.7/site-packages/itsdangerous.py itsdangerous.py
+ln -s venv/lib/python2.7/site-packages/pymongo pymongo
+ln -s venv/lib/python2.7/site-packages/bson bson

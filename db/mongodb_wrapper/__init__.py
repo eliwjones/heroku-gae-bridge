@@ -1,5 +1,8 @@
 from flask import current_app
-from gevent import monkey; monkey.patch_all()
+try:
+    from gevent import monkey; monkey.patch_all()
+except ImportError:
+    pass
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError as MongoDuplicateKeyError
 import types
