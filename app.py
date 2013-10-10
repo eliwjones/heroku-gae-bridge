@@ -4,6 +4,9 @@ from flask import Flask, g
 app = Flask(__name__, static_folder='static')
 app.config.from_object('default_settings')
 app.config.from_envvar('ENV_SETTINGS', silent=True)
+if 'APPENGINE' in os.environ.keys():
+    app.config['DB_CLASS_FOLDER'] = 'gaedatastore_wrapper'
+    app.config['DB_CLASS_NAME'] = 'GaeDatastoreWrapper'
 
 data_wrapper = __import__('db.' + app.config['DB_CLASS_FOLDER'], fromlist = [app.config['DB_CLASS_NAME']])
 _class = getattr(data_wrapper, app.config['DB_CLASS_NAME'])
