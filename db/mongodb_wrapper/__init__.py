@@ -1,4 +1,4 @@
-from flask import current_app
+#from flask import current_app
 try:
     from gevent import monkey; monkey.patch_all()
 except ImportError:
@@ -19,17 +19,16 @@ class MongoDbWrapper(object):
         connstr = app.config['DB_CONNECTION_STRING']
         conn = MongoClient(connstr)
         dbname =  app.config['DB_NAME']
-        app.extensions['data_wrapper']['ns'] = app.config['ENV']
-        app.extensions['data_wrapper']['conn'] = conn
-        app.extensions['data_wrapper']['db'] = conn[dbname]
+        self._db = conn[dbname]
+        self._ns = app.config['ENV']
         
     @property
     def db(self):
-        return current_app.extensions['data_wrapper']['db']
+        return self._db
     
     @property
     def ns(self):
-        return current_app.extensions['data_wrapper']['ns']
+        return self._ns
     
     def get_collection(self, table):
         ns = self.ns
@@ -51,7 +50,7 @@ class MongoDbWrapper(object):
             raise self.DuplicateKeyError('', '')
 
     def find(self, table, properties):
-        return self.get_collection(table).find(properties)
+        return list(self.get_collection(table).find(properties))
 
     def update(self, table, key, properties, upsert = False, replace = False):
         if replace:
