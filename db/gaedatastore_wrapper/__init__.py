@@ -1,3 +1,4 @@
+from db.mongodb_wrapper import mongo_flatten as flatten
 from flask import current_app
 from google.appengine.ext import db
 
@@ -27,8 +28,9 @@ class GaeDatastoreWrapper(object):
         if key_name:
             from google.appengine.api.datastore import Key
             query.filter('__key__ =', Key.from_path(name, key_name))
-        for prop in properties:
-            query.filter(prop + ' =', properties[prop])
+        flattened_props = flatten(properties)
+        for prop in flattened_props:
+            query.filter(prop + ' =', flattened_props[prop])
         if limit == 1:
             result = query.get()
             if result:
@@ -52,7 +54,6 @@ class GaeDatastoreWrapper(object):
         db.delete(results)
 
     def put(self, name, properties):
-        from db.mongodb_wrapper import mongo_flatten as flatten
         key_name = properties.pop('_id', None)
         collection = self.create_class(name, key_name)
         flattened_props = flatten(properties)
