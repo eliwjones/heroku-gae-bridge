@@ -39,14 +39,11 @@ class GaeDatastoreWrapper(object):
         else:
             results = []
             run = query.run(limit=limit, keys_only = for_delete)
-            for result in run:
-                if for_delete:
+            if not for_delete:
+                results = self.DatastoreCursorWrapper(run)
+            else:
+                for result in run:
                     results.append(result)
-                    continue
-                key_name = result.key().id_or_name()
-                result_dict = unflatten(db.to_dict(result))
-                result_dict['_id'] = key_name
-                results.append(result_dict)
         return results
 
     def remove(self, table, properties):
@@ -79,6 +76,20 @@ class GaeDatastoreWrapper(object):
     class DuplicateKeyError(Exception):
         """ To pass dup exception through to wrapper.
         """
+
+    class DatastoreCursorWrapper(db._QueryIterator):
+        """ Allow datastore cursor to munge iterated items.
+        """
+        def __init__(self, wrapped):
+            self._wrapped = wrapped
+        def next(self):
+            result = self._wrapped.next()
+            key_name = result.key().id_or_name()
+            result_dict = unflatten(db.to_dict(result))
+            result_dict['_id'] = key_name
+            return result_dict
+        def __getattr__(self, attr):
+            return getattr(self._wrapped, attr)
 
 def unflatten(dictionary):
     resultDict = dict()
