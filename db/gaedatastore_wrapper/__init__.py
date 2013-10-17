@@ -42,7 +42,7 @@ class GaeDatastoreWrapper(object):
         return results
 
     def remove(self, table, properties):
-        keys_to_delete = self.find(table, properties, limit = 1000000, keys_only = True)
+        keys_to_delete = self.find(table, properties, keys_only = True)
         db.delete(keys_to_delete)
 
     def put(self, table, properties):
@@ -53,7 +53,7 @@ class GaeDatastoreWrapper(object):
             setattr(collection, key, flattened_props[key])
         return collection.put().id_or_name()
 
-    def find(self, table, properties, limit = 1000000, keys_only = False):
+    def find(self, table, properties, limit = None, keys_only = False):
         query = self.build_query(table, properties)
         results = []
         run = query.run(limit=limit, keys_only = keys_only)
