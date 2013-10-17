@@ -1,6 +1,6 @@
 from db import flatten, unflatten
-from flask import current_app
 from google.appengine.ext import db
+from google.appengine.api import namespace_manager
 
 class GaeDatastoreWrapper(object):
 
@@ -11,6 +11,8 @@ class GaeDatastoreWrapper(object):
     def init_app(self, app):
         if 'data_wrapper' not in app.extensions:
             app.extensions['data_wrapper'] = {}
+            # Not really sure if care to have ns be ENV or DB_NAME or both..
+            namespace_manager.set_namespace(app.config['ENV'])
 
 
     def create_class(self, name, key_name = None):
@@ -37,9 +39,10 @@ class GaeDatastoreWrapper(object):
         query = self.build_query(table, properties)
         result = query.get()
         if result:
-            results = unflatten(db.to_dict(result))
-            results['_id'] = result.key().id_or_name()
-        return results
+            key_name = result.key().id_or_name()
+            result = unflatten(db.to_dict(result))
+            result['_id'] = key_name
+        return result
 
     def remove(self, table, properties):
         keys_to_delete = self.find(table, properties, keys_only = True)
