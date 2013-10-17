@@ -34,29 +34,25 @@ for data_class_folder in data_classes:
     result = data_class.put('test_collection', props)
 
     result = data_class.get('test_collection', props)
-    print "GET"
-    print result == base_document1
+    print "GET: %s" % (result == base_document1)
 
-    print "FIND"
     result = list(data_class.find('test_collection', {'_id' : 'my_test_id1'}))
-    print result == [base_document1]
+    print "FIND: %s" %  (result == [base_document1])
 
     base_document2 = deepcopy(props)
     base_document2['_id'] = 'my_test_id2'
     props2 = deepcopy(base_document2)
 
     data_class.put('test_collection', props2)
-    print "FIND2"
     result = list(data_class.find('test_collection', {'string_property' : 'string_value'}))
     result.sort()
     comp_list = [base_document1, base_document2]
     comp_list.sort()
-    print result == comp_list
-
+    print "FIND2: %s" % (result == comp_list)
 
     result = data_class.remove('test_collection', {'_id' : 'my_test_id1'})
     result = list(data_class.find('test_collection',{}))
-    print result == [base_document2]
+    print "REMOVE: %s" % (result == [base_document2])
 
     data_class.remove('test_collection', {})
 
