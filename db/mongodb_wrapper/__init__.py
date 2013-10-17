@@ -1,11 +1,11 @@
-#from flask import current_app
+from db import flatten
 try:
     from gevent import monkey; monkey.patch_all()
 except ImportError:
     pass
 from pymongo import MongoClient
+from pymongo.cursor import Cursor
 from pymongo.errors import DuplicateKeyError as MongoDuplicateKeyError
-import types
 
 class MongoDbWrapper(object):
     
@@ -50,14 +50,15 @@ class MongoDbWrapper(object):
             raise self.DuplicateKeyError('', '')
 
     def find(self, table, properties):
-        return list(self.get_collection(table).find(properties))
+        cursor = self.get_collection(table).find(properties)
+        return self.PymongoCursorWrapper(cursor)
 
     def update(self, table, key, properties, upsert = False, replace = False):
         if replace:
             update = properties
         else:
             properties.pop('_id', None)
-            flattened_props = mongo_flatten(properties)
+            flattened_props = flatten(properties)
             update = {"$set" : flattened_props}
         self.get_collection(table).update({'_id' : key}, update, upsert = upsert)
 
@@ -69,14 +70,13 @@ class MongoDbWrapper(object):
         """ To pass dup exception through to wrapper.
         """
 
-# Turns: {"videos" : {"video_1" : {"k1" : "value1"}, "video_2" : {"k1" : "value2"}}}
-# Into: {"videos.video_1.k1" : "value1", "videos.video_2.k1" : "value2"}
-def mongo_flatten(props, parent_key = ""):
-    new_props = []
-    for key, value in props.items():
-        new_key = parent_key + '.' + key if parent_key else key
-        if type(props[key]) is types.DictType:
-            new_props.extend(mongo_flatten(value, new_key).items())
-        else:
-            new_props.append((new_key, value))
-    return dict(new_props)
+    class PymongoCursorWrapper(Cursor):
+        """ Mostly for proof-of-concept. Needed in GaeDatastoreWrapper.
+        """ 
+        def __init__(self, wrapped):
+            self._wrapped = wrapped
+        def next(self):
+            result = self._wrapped.next()
+            return result
+        def __getattr__(self, attr):
+            return getattr(self._wrapped, attr)

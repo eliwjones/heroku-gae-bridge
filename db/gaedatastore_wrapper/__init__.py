@@ -1,4 +1,4 @@
-from db.mongodb_wrapper import mongo_flatten as flatten
+from db import flatten, unflatten
 from flask import current_app
 from google.appengine.ext import db
 
@@ -90,17 +90,5 @@ class GaeDatastoreWrapper(object):
             return result_dict
         def __getattr__(self, attr):
             return getattr(self._wrapped, attr)
-
-def unflatten(dictionary):
-    resultDict = dict()
-    for key, value in dictionary.iteritems():
-        parts = key.split(".")
-        d = resultDict
-        for part in parts[:-1]:
-            if part not in d:
-                d[part] = dict()
-            d = d[part]
-        d[parts[-1]] = value
-    return resultDict
 
 

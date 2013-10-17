@@ -38,7 +38,7 @@ for data_class_folder in data_classes:
     print result == base_document1
 
     print "FIND"
-    result = data_class.find('test_collection', {'_id' : 'my_test_id1'})
+    result = list(data_class.find('test_collection', {'_id' : 'my_test_id1'}))
     print result == [base_document1]
 
     base_document2 = deepcopy(props)
@@ -47,7 +47,7 @@ for data_class_folder in data_classes:
 
     data_class.put('test_collection', props2)
     print "FIND2"
-    result = data_class.find('test_collection', {'string_property' : 'string_value'})
+    result = list(data_class.find('test_collection', {'string_property' : 'string_value'}))
     result.sort()
     comp_list = [base_document1, base_document2]
     comp_list.sort()
@@ -55,7 +55,7 @@ for data_class_folder in data_classes:
 
 
     result = data_class.remove('test_collection', {'_id' : 'my_test_id1'})
-    result = data_class.find('test_collection',{})
+    result = list(data_class.find('test_collection',{}))
     print result == [base_document2]
 
     data_class.remove('test_collection', {})
