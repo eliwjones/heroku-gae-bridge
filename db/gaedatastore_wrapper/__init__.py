@@ -12,22 +12,26 @@ class GaeDatastoreWrapper(object):
         if 'data_wrapper' not in app.extensions:
             app.extensions['data_wrapper'] = {}
             # Not really sure if care to have ns be ENV or DB_NAME or both..
-            namespace_manager.set_namespace(app.config['ENV'])
+            self._ns = app.config['ENV']
+
+    @property
+    def ns(self):
+        return self._ns
 
     def create_class(self, name, key_name = None):
         db_class = type(name, (ndb.Expando,), {})
         if key_name:
-            return db_class(id = key_name)
+            return db_class(id = key_name, namespace = self.ns)
         else:
-            return db_class()
+            return db_class(namespace = self.ns)
 
     def build_query(self, table, properties):
         key_name = properties.pop('_id', None)
         collection = self.create_class(table)
-        query = ndb.Query(kind = collection.__class__.__name__)
+        query = ndb.Query(kind = collection.__class__.__name__, namespace = self.ns)
         results = None
         if key_name:
-            return ndb.Key(collection.__class__.__name__, key_name)
+            return ndb.Key(collection.__class__.__name__, key_name, namespace = self.ns)
         flattened_props = flatten(properties)
         for prop in flattened_props:
             query.filter(ndb.GenericProperty(prop) == flattened_props[prop])

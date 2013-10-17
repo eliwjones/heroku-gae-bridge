@@ -28,7 +28,8 @@ def render():
     comp_list.sort()
     output.append("FIND2: %s" % (result == comp_list))
 
-    result = g.data_class.remove('test_collection', {'_id' : 'my_test_id1'})
+    if request.args.get('no_remove') is None:
+        result = g.data_class.remove('test_collection', {'_id' : 'my_test_id1'})
     result = list(g.data_class.find('test_collection',{}))
     output.append("Remove Result: %s" % result)
     output.append("REMOVE: %s" % (result == [base_document2]))
