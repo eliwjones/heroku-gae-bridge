@@ -20,46 +20,48 @@ class GaeDatastoreWrapper(object):
         else:
             return db_class()
 
-    def get(self, name, properties, limit=1, for_delete=False):
+    def build_query(self, table, properties):
         key_name = properties.pop('_id', None)
-        collection = self.create_class(name)
+        collection = self.create_class(table)
         query = db.Query(collection)
         results = None
         if key_name:
             from google.appengine.api.datastore import Key
-            query.filter('__key__ =', Key.from_path(name, key_name))
+            query.filter('__key__ =', Key.from_path(table, key_name))
         flattened_props = flatten(properties)
         for prop in flattened_props:
             query.filter(prop + ' =', flattened_props[prop])
-        if limit == 1:
-            result = query.get()
-            if result:
-                results = unflatten(db.to_dict(result))
-                results['_id'] = result.key().id_or_name()
-        else:
-            results = []
-            run = query.run(limit=limit, keys_only = for_delete)
-            if not for_delete:
-                results = self.DatastoreCursorWrapper(run)
-            else:
-                for result in run:
-                    results.append(result)
+        return query
+
+    def get(self, table, properties):
+        query = self.build_query(table, properties)
+        result = query.get()
+        if result:
+            results = unflatten(db.to_dict(result))
+            results['_id'] = result.key().id_or_name()
         return results
 
     def remove(self, table, properties):
-        results = self.get(table, properties, 1000000, True)
-        db.delete(results)
+        keys_to_delete = self.find(table, properties, limit = 1000000, keys_only = True)
+        db.delete(keys_to_delete)
 
-    def put(self, name, properties):
+    def put(self, table, properties):
         key_name = properties.pop('_id', None)
-        collection = self.create_class(name, key_name)
+        collection = self.create_class(table, key_name)
         flattened_props = flatten(properties)
         for key in flattened_props:
             setattr(collection, key, flattened_props[key])
         return collection.put().id_or_name()
 
-    def find(self, table, properties, limit = 1000000):
-        return self.get(table, properties, limit)
+    def find(self, table, properties, limit = 1000000, keys_only = False):
+        query = self.build_query(table, properties)
+        results = []
+        run = query.run(limit=limit, keys_only = keys_only)
+        if keys_only:
+            results = list(run)
+        else:
+            results = self.DatastoreCursorWrapper(run)
+        return results
     
     def update(self, table, key, properties, upsert = False, replace = False):
         properties['_id'] = key
