@@ -7,16 +7,15 @@ sys.path.insert(0, sdk_path)
 import dev_appserver
 dev_appserver.fix_sys_path()
 
-from google.appengine.ext import db
 from google.appengine.ext import testbed
-
 my_testbed = testbed.Testbed()
+my_testbed.activate()
+my_testbed.init_datastore_v3_stub()
+my_testbed.init_memcache_stub()
 
 data_classes = {'gaedatastore_wrapper':'GaeDatastoreWrapper', 'mongodb_wrapper':'MongoDbWrapper'}
 for data_class_folder in data_classes:
     print "******** Testing: %s ********" % (data_class_folder)
-    my_testbed.activate()
-    my_testbed.init_datastore_v3_stub()
 
     app = type('App', (object,), {})
     app.extensions = {}
@@ -34,9 +33,11 @@ for data_class_folder in data_classes:
     result = data_class.put('test_collection', props)
 
     result = data_class.get('test_collection', props)
+    #print "RESULTS: %s" % (result)
     print "GET: %s" % (result == base_document1)
 
     result = list(data_class.find('test_collection', {'_id' : 'my_test_id1'}))
+    #print "RESULTS: %s" % (result)
     print "FIND: %s" %  (result == [base_document1])
 
     base_document2 = deepcopy(props)
@@ -48,12 +49,14 @@ for data_class_folder in data_classes:
     result.sort()
     comp_list = [base_document1, base_document2]
     comp_list.sort()
+    #print "RESULTS: %s" % (result)
     print "FIND2: %s" % (result == comp_list)
 
     result = data_class.remove('test_collection', {'_id' : 'my_test_id1'})
     result = list(data_class.find('test_collection',{}))
+    #print "RESULTS: %s" % (result)
     print "REMOVE: %s" % (result == [base_document2])
 
     data_class.remove('test_collection', {})
 
-    my_testbed.deactivate()
+my_testbed.deactivate()

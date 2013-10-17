@@ -3,7 +3,7 @@ import types
 def flatten(props, parent_key = ""):
     new_props = []
     for key, value in props.items():
-        new_key = parent_key + '.' + key if parent_key else key
+        new_key = parent_key + '|' + key if parent_key else key
         if type(props[key]) is types.DictType:
             new_props.extend(flatten(value, new_key).items())
         else:
@@ -13,7 +13,7 @@ def flatten(props, parent_key = ""):
 def unflatten(dictionary):
     resultDict = dict()
     for key, value in dictionary.iteritems():
-        parts = key.split(".")
+        parts = key.split("|")
         d = resultDict
         for part in parts[:-1]:
             if part not in d:

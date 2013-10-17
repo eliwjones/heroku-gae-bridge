@@ -1,5 +1,5 @@
 from db import flatten, unflatten
-from google.appengine.ext import db
+from google.appengine.ext import ndb
 from google.appengine.api import namespace_manager
 
 class GaeDatastoreWrapper(object):
@@ -14,39 +14,39 @@ class GaeDatastoreWrapper(object):
             # Not really sure if care to have ns be ENV or DB_NAME or both..
             namespace_manager.set_namespace(app.config['ENV'])
 
-
     def create_class(self, name, key_name = None):
-        db_class = type(name, (db.Expando,), {})
+        db_class = type(name, (ndb.Expando,), {})
         if key_name:
-            return db_class(key_name = key_name)
+            return db_class(id = key_name)
         else:
             return db_class()
 
     def build_query(self, table, properties):
         key_name = properties.pop('_id', None)
         collection = self.create_class(table)
-        query = db.Query(collection)
+        query = ndb.Query(kind = collection.__class__.__name__)
         results = None
         if key_name:
-            from google.appengine.api.datastore import Key
-            query.filter('__key__ =', Key.from_path(table, key_name))
+            return ndb.Key(collection.__class__.__name__, key_name)
         flattened_props = flatten(properties)
         for prop in flattened_props:
-            query.filter(prop + ' =', flattened_props[prop])
+            query.filter(ndb.GenericProperty(prop) == flattened_props[prop])
         return query
 
-    def get(self, table, properties):
+    def get(self, table, properties, key_only = False):
         query = self.build_query(table, properties)
         result = query.get()
         if result:
-            key_name = result.key().id_or_name()
-            result = unflatten(db.to_dict(result))
+            if key_only:
+                return result.key
+            key_name = result.key.id()
+            result = unflatten(result.to_dict())
             result['_id'] = key_name
         return result
 
     def remove(self, table, properties):
         keys_to_delete = self.find(table, properties, keys_only = True)
-        db.delete(keys_to_delete)
+        ndb.delete_multi(keys_to_delete)
 
     def put(self, table, properties):
         key_name = properties.pop('_id', None)
@@ -54,16 +54,18 @@ class GaeDatastoreWrapper(object):
         flattened_props = flatten(properties)
         for key in flattened_props:
             setattr(collection, key, flattened_props[key])
-        return collection.put().id_or_name()
+        return collection.put().id()
 
     def find(self, table, properties, limit = None, keys_only = False):
+        if '_id' in properties:
+            return [self.get(table, properties, key_only = keys_only)]
         query = self.build_query(table, properties)
         results = []
-        run = query.run(limit=limit, keys_only = keys_only)
+        cursor = query.iter(limit=limit, keys_only = keys_only)
         if keys_only:
-            results = list(run)
+            results = list(cursor)
         else:
-            results = self.DatastoreCursorWrapper(run)
+            results = self.DatastoreCursorWrapper(cursor)
         return results
     
     def update(self, table, key, properties, upsert = False, replace = False):
@@ -82,15 +84,15 @@ class GaeDatastoreWrapper(object):
         """ To pass dup exception through to wrapper.
         """
 
-    class DatastoreCursorWrapper(db._QueryIterator):
+    class DatastoreCursorWrapper(ndb.QueryIterator):
         """ Allow datastore cursor to munge iterated items.
         """
         def __init__(self, wrapped):
             self._wrapped = wrapped
         def next(self):
             result = self._wrapped.next()
-            key_name = result.key().id_or_name()
-            result_dict = unflatten(db.to_dict(result))
+            key_name = result.key.id()
+            result_dict = unflatten(result.to_dict())
             result_dict['_id'] = key_name
             return result_dict
         def __getattr__(self, attr):
