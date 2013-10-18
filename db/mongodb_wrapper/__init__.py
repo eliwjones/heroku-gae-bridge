@@ -29,6 +29,11 @@ class MongoDbWrapper(object):
     @property
     def ns(self):
         return self._ns
+
+    def get_collection_names(self):
+        ns_collections = self.db.collection_names(include_system_collections=False)
+        ns_collections = [collection.replace("%s." % self._ns, '', 1) for collection in ns_collections if collection.startswith("%s." % self._ns)]
+        return ns_collections
     
     def get_collection(self, table):
         ns = self.ns
