@@ -24,11 +24,6 @@ class GaeDatastoreWrapper(object):
         else:
             return db_class(namespace = self.ns)
 
-    def get_collection_names(self):
-        from google.appengine.ext.ndb.metadata import Kind
-        query = ndb.Query(kind = '__kind__', namespace = self.ns)
-        return [collection.kind_name for collection in query.fetch()]
-
     def build_query(self, table, properties):
         key_name = properties.pop('_id', None)
         collection = self.create_class(table)
@@ -85,8 +80,15 @@ class GaeDatastoreWrapper(object):
         for key in properties:
             document[key] = properties[key]
         return self.put(table, document)
-    
-    
+
+
+    """ Replication related functions. """
+
+    def get_collection_names(self):
+        from google.appengine.ext.ndb.metadata import Kind
+        query = ndb.Query(kind = '__kind__', namespace = self.ns)
+        return [collection.kind_name for collection in query.fetch()]
+  
     
     class DuplicateKeyError(Exception):
         """ To pass dup exception through to wrapper.
