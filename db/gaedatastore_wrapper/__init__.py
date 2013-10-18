@@ -1,6 +1,5 @@
 from db import flatten, unflatten
 from google.appengine.ext import ndb
-from google.appengine.api import namespace_manager
 
 class GaeDatastoreWrapper(object):
 
