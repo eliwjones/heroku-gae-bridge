@@ -21,6 +21,12 @@ class GaeDatastoreWrapper(object):
     def refresh_tokenmaps(self):
         self._tokenmaps = get_tokenmaps(self)
 
+    def get_token_map(self, table, type):
+        try:
+            return self._tokenmaps[type][table]
+        except:
+            return {}
+
     @property
     def ns(self):
         return self._ns
@@ -39,7 +45,7 @@ class GaeDatastoreWrapper(object):
         results = None
         if key_name:
             return ndb.Key(collection.__class__.__name__, key_name, namespace = self.ns)
-        flattened_props = flatten(properties)
+        flattened_props = flatten(properties, token_map = self.get_token_map(table, 'encode'))
         for prop in flattened_props:
             query.filter(ndb.GenericProperty(prop) == flattened_props[prop])
         return query
@@ -51,7 +57,7 @@ class GaeDatastoreWrapper(object):
             if key_only:
                 return result.key
             key_name = result.key.id()
-            result = unflatten(result.to_dict())
+            result = unflatten(result.to_dict(), token_map = self.get_token_map(table, 'decode'))
             result['_id'] = key_name
         return result
 
@@ -62,7 +68,7 @@ class GaeDatastoreWrapper(object):
     def put(self, table, properties):
         key_name = properties.pop('_id', None)
         collection = self.create_class(table, key_name)
-        flattened_props = flatten(properties)
+        flattened_props = flatten(properties, token_map = self.get_token_map(table, 'encode'))
         for key in flattened_props:
             setattr(collection, key, flattened_props[key])
         return collection.put().id()
@@ -76,7 +82,7 @@ class GaeDatastoreWrapper(object):
         if keys_only:
             results = list(cursor)
         else:
-            results = self.DatastoreCursorWrapper(cursor)
+            results = self.DatastoreCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
         return results
     
     def update(self, table, key, properties, upsert = False, replace = False):
@@ -104,12 +110,13 @@ class GaeDatastoreWrapper(object):
     class DatastoreCursorWrapper(ndb.QueryIterator):
         """ Allow datastore cursor to munge iterated items.
         """
-        def __init__(self, wrapped):
+        def __init__(self, wrapped, token_map):
             self._wrapped = wrapped
+            self._token_map = token_map
         def next(self):
             result = self._wrapped.next()
             key_name = result.key.id()
-            result_dict = unflatten(result.to_dict())
+            result_dict = unflatten(result.to_dict(), token_map = self._token_map)
             result_dict['_id'] = key_name
             return result_dict
         def __getattr__(self, attr):

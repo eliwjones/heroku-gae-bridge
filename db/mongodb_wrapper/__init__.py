@@ -30,6 +30,12 @@ class MongoDbWrapper(object):
     def refresh_tokenmaps(self):
         self._tokenmaps = get_tokenmaps(self)
 
+    def get_token_map(self, table, type):
+        try:
+            return self._tokenmaps[type][table]
+        except:
+            return {}
+
     @property
     def db(self):
         return self._db
@@ -50,10 +56,10 @@ class MongoDbWrapper(object):
     
     def get(self, table, properties = None):
         if properties:
-            properties = flatten(properties)
+            properties = flatten(properties, token_map = self.get_token_map(table, 'encode'))
         document = self.get_collection(table).find_one(properties)
         if document:
-            document = unflatten(document)
+            document = unflatten(document, token_map = self.get_token_map(table, 'decode'))
         return document
     
     def remove(self, table, properties):
@@ -63,22 +69,22 @@ class MongoDbWrapper(object):
         if document is None or table is None:
             return
         try:
-            document = flatten(document)
+            document = flatten(document, token_map = self.get_token_map(table, 'encode'))
             return self.get_collection(table).insert(document)
         except MongoDuplicateKeyError:
             raise self.DuplicateKeyError('', '')
 
     def find(self, table, properties):
-        properties = flatten(properties)
+        properties = flatten(properties, token_map = self.get_token_map(table, 'encode'))
         cursor = self.get_collection(table).find(properties)
-        return self.PymongoCursorWrapper(cursor)
+        return self.PymongoCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
 
     def update(self, table, key, properties, upsert = False, replace = False):
         if replace:
-            update = flatten(properties)
+            update = flatten(properties, token_map = self.get_token_map(table, 'encode'))
         else:
             properties.pop('_id', None)
-            flattened_props = flatten(properties)
+            flattened_props = flatten(properties, token_map = self.get_token_map(table, 'encode'))
             update = {"$set" : flattened_props}
         self.get_collection(table).update({'_id' : key}, update, upsert = upsert)
 
@@ -93,10 +99,11 @@ class MongoDbWrapper(object):
     class PymongoCursorWrapper(Cursor):
         """ Mostly for proof-of-concept. Needed in GaeDatastoreWrapper.
         """ 
-        def __init__(self, wrapped):
+        def __init__(self, wrapped, token_map):
             self._wrapped = wrapped
+            self._token_map = token_map
         def next(self):
             result = self._wrapped.next()
-            return unflatten(result)
+            return unflatten(result, self._token_map)
         def __getattr__(self, attr):
             return getattr(self._wrapped, attr)

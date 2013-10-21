@@ -1,6 +1,6 @@
 import types
 
-def flatten(props, parent_key = ""):
+def flatten(props, parent_key = "", token_map = {}):
     new_props = []
     for key, value in props.items():
         # Check for '.', '|' or int and raise exception.
@@ -17,14 +17,18 @@ def flatten(props, parent_key = ""):
             raise Exception("Cannot use integers as property names!")
         new_key = parent_key + '|' + key if parent_key else key
         if type(props[key]) is types.DictType:
-            new_props.extend(flatten(value, new_key).items())
+            new_props.extend(flatten(value, parent_key = new_key, token_map = token_map).items())
         else:
+            if new_key in token_map:
+                new_key = token_map[new_key]
             new_props.append((new_key, value))
     return dict(new_props)
 
-def unflatten(dictionary):
+def unflatten(dictionary, token_map = {}):
     resultDict = dict()
     for key, value in dictionary.iteritems():
+        if key in token_map:
+            key = token_map[key]
         parts = key.split("|")
         d = resultDict
         for part in parts[:-1]:
@@ -64,11 +68,10 @@ def build_metadata(cursor):
 
 
 def get_tokenmaps(data_class):
-    tokenmaps = {}
+    tokenmaps = {'encode' : {}, 'decode' : {}}
     tokenmaps_cursor = data_class.find('tokenmaps', {})
     for tokenmap in tokenmaps_cursor:
         collection_name = tokenmap.pop('_id')
-        tokenmaps[collection_name] = {}
-        tokenmaps[collection_name]['encode'] = flatten(tokenmap)
-        tokenmaps[collection_name]['decode'] = { tokenmaps[collection_name]['encode'][prop] : prop for prop in tokenmaps[collection_name]['encode'] }
+        tokenmaps['encode'][collection_name] = flatten(tokenmap)
+        tokenmaps['decode'][collection_name] = { tokenmaps['encode'][collection_name][prop] : prop for prop in tokenmaps['encode'][collection_name] }
     return tokenmaps

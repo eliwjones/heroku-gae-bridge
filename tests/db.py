@@ -20,12 +20,12 @@ for data_class_folder in data_classes:
     app = type('App', (object,), {})
     app.extensions = {}
     app.config = {'DB_CONNECTION_STRING' : None, 'DB_NAME' : 'app', 'ENV' : 'sandbox'}
-
     data_wrapper = __import__('db.' + data_class_folder, fromlist = [data_classes[data_class_folder]])
     _class = getattr(data_wrapper, data_classes[data_class_folder])
     data_class = _class(app)
 
     data_class.remove('test_collection', {})
+    data_class.remove('tokenmaps', {})
 
     # Test put, get, find, update, remove
     base_document1 = {'_id' : 'my_test_id1', 'string_property' : 'string_value', 'integer_property' : 10, 'nested' : {'thing' : 'in_nest'}}
@@ -68,6 +68,20 @@ for data_class_folder in data_classes:
     #print "RESULTS: %s" % (result)
     print "REMOVE: %s" % (result == [updated_doc2])
 
+    # Test Token Mapping #
+    from db import unflatten
+    data_class.put('tokenmaps', unflatten({'_id' : 'test_collection', 'new|nested|thing' : '0'}))
+    data_class.refresh_tokenmaps()
+    print "** TOKEN MAPS **"
+    print "%s" % (data_class._tokenmaps)
+
+    print "'test_collection' encode tokenmap: %s" % (data_class.get_token_map('test_collection', 'encode'))
+    print "'test_collection' decode tokenmap: %s" % (data_class.get_token_map('test_collection', 'decode'))
+    data_class.put('test_collection', {'_id' : 'tokenized_id1', 'new' : {'nested':{'thing': 'this_is deeply nested and tokenized'}}})
+    result = data_class.get('test_collection', {'_id' : 'tokenized_id1'})
+    print result
+
+    data_class.remove('tokenmaps', {})
 #    data_class.remove('test_collection', {})
 
 my_testbed.deactivate()
