@@ -34,10 +34,18 @@ def unflatten(dictionary):
         d[parts[-1]] = value
     return resultDict
 
-def build_tokenmap(cursor):
+def build_metadata(cursor):
     prop_data = {}
+    key_count = -1
+    partition_size = 1000
+    key_distribution = {}
+    keyname = None
     for document in cursor:
         try:
+            keyname = document['_id']
+            key_count += 1
+            if key_count % partition_size == 0:
+                key_distribution[key_count] = keyname
             del document['_id']
         except:
             pass
@@ -46,9 +54,11 @@ def build_tokenmap(cursor):
             if prop not in prop_data:
                 prop_data[prop] = 0
             prop_data[prop] += 1
+    # Set final keyname in distribution.
+    key_distribution[key_count] = keyname
     for prop in prop_data:
         prop_data[prop] *= len(prop)
     prop_frequency = sorted(prop_data, key = prop_data.__getitem__, reverse=True)
     token_map = {prop:idx for idx,prop in enumerate(prop_frequency)}
-    return token_map
+    return {'token_map' : token_map, 'key_distribution' : key_distribution, 'partition_size' : partition_size}
 
