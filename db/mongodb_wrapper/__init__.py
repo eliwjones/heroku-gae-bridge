@@ -1,4 +1,4 @@
-from db import flatten
+from db import flatten, unflatten
 try:
     from gevent import monkey; monkey.patch_all()
 except ImportError:
@@ -41,7 +41,12 @@ class MongoDbWrapper(object):
         return self.db[collection_name]
     
     def get(self, table, properties = None):
-        return self.get_collection(table).find_one(properties)
+        if properties:
+            properties = flatten(properties)
+        document = self.get_collection(table).find_one(properties)
+        if document:
+            document = unflatten(document)
+        return document
     
     def remove(self, table, properties):
         return self.get_collection(table).remove(properties)
@@ -50,17 +55,19 @@ class MongoDbWrapper(object):
         if document is None or table is None:
             return
         try:
+            document = flatten(document)
             return self.get_collection(table).insert(document)
         except MongoDuplicateKeyError:
             raise self.DuplicateKeyError('', '')
 
     def find(self, table, properties):
+        properties = flatten(properties)
         cursor = self.get_collection(table).find(properties)
         return self.PymongoCursorWrapper(cursor)
 
     def update(self, table, key, properties, upsert = False, replace = False):
         if replace:
-            update = properties
+            update = flatten(properties)
         else:
             properties.pop('_id', None)
             flattened_props = flatten(properties)
@@ -82,6 +89,6 @@ class MongoDbWrapper(object):
             self._wrapped = wrapped
         def next(self):
             result = self._wrapped.next()
-            return result
+            return unflatten(result)
         def __getattr__(self, attr):
             return getattr(self._wrapped, attr)
