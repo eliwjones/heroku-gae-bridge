@@ -19,13 +19,10 @@ class MongoDbWrapper(object):
             connstr = app.config['DB_CONNECTION_STRING']
             conn = MongoClient(connstr)
             dbname =  app.config['DB_NAME']
-            self._db = conn[dbname]
-            self._ns = app.config['ENV']
-            app.extensions['data_wrapper']['ns'] = self._ns
-            app.extensions['data_wrapper']['db'] = self._db
-        else:
-            self._db = app.extensions['data_wrapper']['db']
-            self._ns = app.extensions['data_wrapper']['ns']
+            app.extensions['data_wrapper']['ns'] = app.config['ENV']
+            app.extensions['data_wrapper']['db'] = conn[dbname]
+        self._db = app.extensions['data_wrapper']['db']
+        self._ns = app.extensions['data_wrapper']['ns']
         
     @property
     def db(self):

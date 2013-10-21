@@ -11,7 +11,8 @@ class GaeDatastoreWrapper(object):
         if 'data_wrapper' not in app.extensions:
             app.extensions['data_wrapper'] = {}
             # Not really sure if care to have ns be ENV or DB_NAME or both..
-            self._ns = app.config['ENV']
+            app.extensions['data_wrapper']['ns'] = app.config['ENV']
+        self._ns = app.extensions['data_wrapper']['ns']
 
     @property
     def ns(self):
