@@ -1,4 +1,4 @@
-from db import flatten, unflatten
+from db import flatten, unflatten, get_tokenmaps
 from google.appengine.ext import ndb
 
 class GaeDatastoreWrapper(object):
@@ -7,12 +7,19 @@ class GaeDatastoreWrapper(object):
         if app is not None:
             self.init_app(app)
             self._ns = app.extensions['data_wrapper']['ns']
+            if 'tokenmaps' not in app.extensions['data_wrapper']:
+                app.extensions['data_wrapper']['tokenmaps'] = get_tokenmaps(self)
+            self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
+                    
 
     def init_app(self, app):
         if 'data_wrapper' not in app.extensions:
             app.extensions['data_wrapper'] = {}
             # Not really sure if care to have ns be ENV or DB_NAME or both..
             app.extensions['data_wrapper']['ns'] = app.config['ENV']
+            
+    def refresh_tokenmaps(self):
+        self._tokenmaps = get_tokenmaps(self)
 
     @property
     def ns(self):
@@ -89,7 +96,6 @@ class GaeDatastoreWrapper(object):
         from google.appengine.ext.ndb.metadata import Kind
         query = ndb.Query(kind = '__kind__', namespace = self.ns)
         return [collection.kind_name for collection in query.fetch()]
-  
     
     class DuplicateKeyError(Exception):
         """ To pass dup exception through to wrapper.

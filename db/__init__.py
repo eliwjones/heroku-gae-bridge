@@ -62,3 +62,13 @@ def build_metadata(cursor):
     token_map = {prop:idx for idx,prop in enumerate(prop_frequency)}
     return {'token_map' : token_map, 'key_distribution' : key_distribution, 'partition_size' : partition_size}
 
+
+def get_tokenmaps(data_class):
+    tokenmaps = {}
+    tokenmaps_cursor = data_class.find('tokenmaps', {})
+    for tokenmap in tokenmaps_cursor:
+        collection_name = tokenmap.pop('_id')
+        tokenmaps[collection_name] = {}
+        tokenmaps[collection_name]['encode'] = flatten(tokenmap)
+        tokenmaps[collection_name]['decode'] = { tokenmaps[collection_name]['encode'][prop] : prop for prop in tokenmaps[collection_name]['encode'] }
+    return tokenmaps

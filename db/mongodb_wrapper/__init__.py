@@ -1,4 +1,4 @@
-from db import flatten, unflatten
+from db import flatten, unflatten, get_tokenmaps
 try:
     from gevent import monkey; monkey.patch_all()
 except ImportError:
@@ -14,6 +14,9 @@ class MongoDbWrapper(object):
             self.init_app(app)
             self._db = app.extensions['data_wrapper']['db']
             self._ns = app.extensions['data_wrapper']['ns']
+            if 'tokenmaps' not in app.extensions['data_wrapper']:
+                app.extensions['data_wrapper']['tokenmaps'] = get_tokenmaps(self)
+            self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
  
     def init_app(self, app):
         if 'data_wrapper' not in app.extensions:
@@ -23,7 +26,10 @@ class MongoDbWrapper(object):
             dbname =  app.config['DB_NAME']
             app.extensions['data_wrapper']['ns'] = app.config['ENV']
             app.extensions['data_wrapper']['db'] = conn[dbname]
-        
+
+    def refresh_tokenmaps(self):
+        self._tokenmaps = get_tokenmaps(self)
+
     @property
     def db(self):
         return self._db
