@@ -37,8 +37,10 @@ def unflatten(dictionary):
 def build_tokenmap(cursor):
     prop_data = {}
     for document in cursor:
-        if '_id' in document:
+        try:
             del document['_id']
+        except:
+            pass
         flattened_doc = flatten(document)
         for prop in flattened_doc:
             if prop not in prop_data:
