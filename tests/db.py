@@ -25,6 +25,8 @@ for data_class_folder in data_classes:
     _class = getattr(data_wrapper, data_classes[data_class_folder])
     data_class = _class(app)
 
+    data_class.remove('test_collection', {})
+
     # Test put, get, find, update, remove
     base_document1 = {'_id' : 'my_test_id1', 'string_property' : 'string_value', 'integer_property' : 10, 'nested' : {'thing' : 'in_nest'}}
     from copy import deepcopy
@@ -45,9 +47,18 @@ for data_class_folder in data_classes:
     props2 = deepcopy(base_document2)
 
     data_class.put('test_collection', props2)
+    result = data_class.get('test_collection', {'_id' : 'my_test_id2'})
+    print "PUT: %s" % (result == base_document2)
+
+    data_class.update('test_collection', 'my_test_id2', {'nested':{'thing' : 'nested was updated'}})
+    updated_doc2 = deepcopy(base_document2)
+    updated_doc2['nested']['thing'] = 'nested was updated'
+    result = data_class.get('test_collection', {'_id' : 'my_test_id2'})
+    print "UPDATE: %s" % (result == updated_doc2)
+
     result = list(data_class.find('test_collection', {'string_property' : 'string_value'}))
     result.sort()
-    comp_list = [base_document1, base_document2]
+    comp_list = [base_document1, updated_doc2]
     comp_list.sort()
     #print "RESULTS: %s" % (result)
     print "FIND2: %s" % (result == comp_list)
@@ -55,8 +66,8 @@ for data_class_folder in data_classes:
     result = data_class.remove('test_collection', {'_id' : 'my_test_id1'})
     result = list(data_class.find('test_collection',{}))
     #print "RESULTS: %s" % (result)
-    print "REMOVE: %s" % (result == [base_document2])
+    print "REMOVE: %s" % (result == [updated_doc2])
 
-    data_class.remove('test_collection', {})
+#    data_class.remove('test_collection', {})
 
 my_testbed.deactivate()
