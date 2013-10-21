@@ -6,13 +6,13 @@ class GaeDatastoreWrapper(object):
     def __init__(self, app=None):
         if app is not None:
             self.init_app(app)
+            self._ns = app.extensions['data_wrapper']['ns']
 
     def init_app(self, app):
         if 'data_wrapper' not in app.extensions:
             app.extensions['data_wrapper'] = {}
             # Not really sure if care to have ns be ENV or DB_NAME or both..
             app.extensions['data_wrapper']['ns'] = app.config['ENV']
-        self._ns = app.extensions['data_wrapper']['ns']
 
     @property
     def ns(self):

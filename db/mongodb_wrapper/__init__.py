@@ -12,6 +12,8 @@ class MongoDbWrapper(object):
     def __init__(self, app=None):
         if app is not None:
             self.init_app(app)
+            self._db = app.extensions['data_wrapper']['db']
+            self._ns = app.extensions['data_wrapper']['ns']
  
     def init_app(self, app):
         if 'data_wrapper' not in app.extensions:
@@ -21,8 +23,6 @@ class MongoDbWrapper(object):
             dbname =  app.config['DB_NAME']
             app.extensions['data_wrapper']['ns'] = app.config['ENV']
             app.extensions['data_wrapper']['db'] = conn[dbname]
-        self._db = app.extensions['data_wrapper']['db']
-        self._ns = app.extensions['data_wrapper']['ns']
         
     @property
     def db(self):
