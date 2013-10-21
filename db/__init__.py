@@ -47,10 +47,6 @@ def build_tokenmap(cursor):
     for prop in prop_data:
         prop_data[prop] *= len(prop)
     prop_frequency = sorted(prop_data, key = prop_data.__getitem__, reverse=True)
-    token = 0
-    token_map = {}
-    for prop in prop_frequency:
-        token_map[prop] = token
-        token += 1
+    token_map = {prop:idx for idx,prop in enumerate(prop_frequency)}
     return token_map
 
