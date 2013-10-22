@@ -18,6 +18,9 @@ skip_files:
 env_variables:
   APPENGINE: True
 
+builtins:
+- deferred: on
+
 handlers:
 - url: /.*
   script: app.app
