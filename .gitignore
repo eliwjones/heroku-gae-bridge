@@ -1,6 +1,7 @@
 *~
 venv
 *.pyc
+pmq.log
 
 # Ignore gae module ln-s.
 flask
