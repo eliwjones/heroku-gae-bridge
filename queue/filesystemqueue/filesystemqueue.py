@@ -1,8 +1,11 @@
 """Indebted to the ever sexy deferred from google.appengine.ext"""
 
-import pickle, random, string, os, types
+import pickle, random, string, os, types, glob
 
-_QUEUE_DIR = "/home/mrz/github_repos/eliwjones/heroku-gae-bridge/pmq"
+_QUEUE_DIR = os.path.dirname(os.path.abspath(__file__))
+if _QUEUE_DIR.endswith('/queue/filesystemqueue'):
+    _QUEUE_DIR = _QUEUE_DIR[:-len('/queue/filesystemqueue')]
+_QUEUE_DIR += '/pmq'
 
 def defer(obj, *args, **kwargs):
     item_name = kwargs.pop('_name', 'filesystemqueueitem')
@@ -20,14 +23,14 @@ def defer(obj, *args, **kwargs):
 def work():
     # Too annoying to find out how to get oldest file without bullshit contortions.
     try:
-        queueitem_key = os.listdir(_QUEUE_DIR).pop()
+        queueitem_path = glob.glob("%s/*" % (_QUEUE_DIR)).pop()
     except:
         print "No work to do!"
         return
-    with open("%s/%s" % (_QUEUE_DIR, queueitem_key)) as queueitem:
+    with open("%s" % (queueitem_path)) as queueitem:
         func, args, kwds = pickle.load(queueitem)
     try:
-        os.remove("%s/%s" % (_QUEUE_DIR, queueitem_key))
+        os.remove("%s" % (queueitem_path))
     except:
         print "Presumably remove failed since already removed.  So silently exit."
         return

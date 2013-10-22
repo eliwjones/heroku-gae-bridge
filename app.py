@@ -9,6 +9,12 @@ if 'APPENGINE' in os.environ.keys():
     app.config['DB_CLASS_NAME'] = 'GaeDatastoreWrapper'
 else:
     from flask import Response
+    @app.route("/pmqwork")
+    def insert_work():
+        from queue import filesystemqueue
+        from queue.consumers import *
+        filesystemqueue.defer(my_func, "hello from heroku", _name = 'myfunctest')
+        return Response("Inserted stuff to pmq.", content_type = "text/plain")
     @app.route("/pmqlog")
     def show_log():
         logresults = "No pmqlog results"
