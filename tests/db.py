@@ -13,7 +13,7 @@ my_testbed.activate()
 my_testbed.init_datastore_v3_stub()
 my_testbed.init_memcache_stub()
 
-data_classes = {'gaedatastore_wrapper':'GaeDatastoreWrapper', 'mongodb_wrapper':'MongoDbWrapper'}
+data_classes = {'gaedatastore_wrapper':'GaeDatastoreWrapper', 'mongodb_wrapper':'MongoDbWrapper', 'textdb_wrapper': 'TextDbWrapper'}
 for data_class_folder in data_classes:
     print "******** Testing: %s ********" % (data_class_folder)
 

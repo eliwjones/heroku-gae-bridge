@@ -2,6 +2,7 @@
 venv
 *.pyc
 pmq.log
+db/textdb_wrapper/app
 
 # Ignore gae module ln-s.
 flask
