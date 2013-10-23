@@ -17,12 +17,10 @@ data_classes = {'gaedatastore_wrapper':'GaeDatastoreWrapper', 'mongodb_wrapper':
 for data_class_folder in data_classes:
     print "******** Testing: %s ********" % (data_class_folder)
 
-    app = type('App', (object,), {})
-    app.extensions = {}
-    app.config = {'DB_CONNECTION_STRING' : None, 'DB_NAME' : 'app', 'ENV' : 'sandbox'}
+    config = {'DB_CONNECTION_STRING' : None, 'DB_NAME' : 'app', 'ENV' : 'sandbox'}
     data_wrapper = __import__('db.' + data_class_folder, fromlist = [data_classes[data_class_folder]])
     _class = getattr(data_wrapper, data_classes[data_class_folder])
-    data_class = _class(app)
+    data_class = _class(config = config)
 
     data_class.remove('test_collection', {})
     data_class.remove('tokenmaps', {})

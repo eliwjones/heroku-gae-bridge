@@ -3,20 +3,21 @@ from google.appengine.ext import ndb
 
 class GaeDatastoreWrapper(object):
 
-    def __init__(self, app=None):
-        if app is not None:
+    def __init__(self, app = None, config = None):
+        if app:
             self.init_app(app)
-            self._ns = app.extensions['data_wrapper']['ns']
-            if 'tokenmaps' not in app.extensions['data_wrapper']:
-                app.extensions['data_wrapper']['tokenmaps'] = get_tokenmaps(self)
-            self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
-                    
+        elif config:
+            self._ns = config['ENV']
+            self._tokenmaps = get_tokenmaps(self)
+        else:
+            raise Exception("app or config please!")
 
     def init_app(self, app):
-        if 'data_wrapper' not in app.extensions:
-            app.extensions['data_wrapper'] = {}
-            # Not really sure if care to have ns be ENV or DB_NAME or both..
-            app.extensions['data_wrapper']['ns'] = app.config['ENV']
+        app.extensions['data_wrapper'] = app.extensions.get('data_wrapper', {})
+        app.extensions['data_wrapper']['ns'] = app.extensions['data_wrapper'].get('ns', app.config['ENV'])
+        self._ns = app.extensions['data_wrapper']['ns']
+        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', get_tokenmaps(self))
+        self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
             
     def refresh_tokenmaps(self):
         self._tokenmaps = get_tokenmaps(self)

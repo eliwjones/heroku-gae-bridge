@@ -9,23 +9,32 @@ from pymongo.errors import DuplicateKeyError as MongoDuplicateKeyError
 
 class MongoDbWrapper(object):
     
-    def __init__(self, app=None):
-        if app is not None:
+    def __init__(self, app = None, config = None):
+        if app:
             self.init_app(app)
-            self._db = app.extensions['data_wrapper']['db']
-            self._ns = app.extensions['data_wrapper']['ns']
-            if 'tokenmaps' not in app.extensions['data_wrapper']:
-                app.extensions['data_wrapper']['tokenmaps'] = get_tokenmaps(self)
-            self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
- 
-    def init_app(self, app):
-        if 'data_wrapper' not in app.extensions:
-            app.extensions['data_wrapper'] = {}
-            connstr = app.config['DB_CONNECTION_STRING']
-            conn = MongoClient(connstr)
-            dbname =  app.config['DB_NAME']
-            app.extensions['data_wrapper']['ns'] = app.config['ENV']
+        elif config:
+            conn = MongoClient(config['DB_CONNECTION_STRING'])
+            dbname = config['DB_NAME']
+            self._db = conn[dbname]
+            self._ns = config['ENV']
+            self._tokenmaps = get_tokenmaps(self)
+        else:
+            raise Exception("app or config please!")
+
+    def init_app(app):
+        app.extensions['data_wrapper'] = app.extensions.get('data_wrapper', {})
+        app.extensions['data_wrapper']['db'] = app.extensions['data_wrapper'].get('db', None)
+        if not app.extensions['data_wrapper']['db']:
+            conn = MongoClient(app.config['DB_CONNECTION_STRING'])
+            dbname = app.config['DB_NAME']
             app.extensions['data_wrapper']['db'] = conn[dbname]
+        app.extensions['data_wrapper']['ns'] = app.extensions['data_wrapper'].get('ns', app.config['ENV'])
+
+        self._db = app.extensions['data_wrapper']['db']
+        self._ns = app.extensions['data_wrapper']['ns']
+
+        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', get_tokenmaps(self))
+        self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
 
     def refresh_tokenmaps(self):
         self._tokenmaps = get_tokenmaps(self)
