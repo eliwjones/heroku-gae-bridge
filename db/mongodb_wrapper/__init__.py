@@ -21,7 +21,7 @@ class MongoDbWrapper(object):
         else:
             raise Exception("app or config please!")
 
-    def init_app(app):
+    def init_app(self, app):
         app.extensions['data_wrapper'] = app.extensions.get('data_wrapper', {})
         app.extensions['data_wrapper']['db'] = app.extensions['data_wrapper'].get('db', None)
         if not app.extensions['data_wrapper']['db']:
