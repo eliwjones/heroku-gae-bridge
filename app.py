@@ -9,6 +9,16 @@ if 'APPENGINE' in os.environ.keys():
     app.config['DB_CLASS_NAME'] = 'GaeDatastoreWrapper'
 else:
     from flask import Response
+    @app.route("/pmqtest")
+    def test_pmq():
+        import time
+        current_time = time.asctime()
+        collection = 'pmq_test_collection'
+        keyname = g.data_class.put(collection, {'_id' : 'pmq_test_keyname', 'nested' : {'time' : {'info': current_time}}}, replace=True)
+        from queue import filesystemqueue
+        from queue.consumers import *
+        filesystemqueue.defer(read_textdb_func, collection, {'_id':keyname}, app.config)
+        return Response("Inserted keyname: %s! Check pmq log!!" % (keyname))
     @app.route("/pmqwork")
     def insert_work():
         from queue import filesystemqueue
@@ -17,9 +27,11 @@ else:
         return Response("Inserted stuff to pmq.", content_type = "text/plain")
     @app.route("/pmqlog")
     def show_log():
-        logresults = "No pmqlog results"
-        with open('pmq.log', 'r') as pmqlog:
-            logresults = pmqlog.read()
+        try:
+            with open('pmq.log', 'r') as pmqlog:
+                logresults = pmqlog.read()
+        except:
+            logresults = "No pmqlog results"
         return Response("LOG RESULTS:\n%s" % (logresults), content_type="text/plain")
 
 data_wrapper = __import__('db.' + app.config['DB_CLASS_FOLDER'], fromlist = [app.config['DB_CLASS_NAME']])
