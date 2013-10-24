@@ -1,4 +1,4 @@
-from db import flatten, unflatten, get_tokenmaps
+from db import flatten, unflatten, get_tokenmaps, get_config
 from google.appengine.ext import ndb
 
 class GaeDatastoreWrapper(object):
@@ -27,6 +27,10 @@ class GaeDatastoreWrapper(object):
             return self._tokenmaps[type][table]
         except:
             return {}
+
+    @property
+    def config(self):
+        return get_config(self)
 
     @property
     def ns(self):

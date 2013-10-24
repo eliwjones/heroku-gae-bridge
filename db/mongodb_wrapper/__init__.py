@@ -1,4 +1,4 @@
-from db import flatten, unflatten, get_tokenmaps
+from db import flatten, unflatten, get_tokenmaps, get_config
 try:
     from gevent import monkey; monkey.patch_all()
 except ImportError:
@@ -13,9 +13,10 @@ class MongoDbWrapper(object):
         if app:
             self.init_app(app)
         elif config:
-            conn = MongoClient(config['DB_CONNECTION_STRING'])
-            dbname = config['DB_NAME']
-            self._db = conn[dbname]
+            self._connstr = config['DB_CONNECTION_STRING']
+            conn = MongoClient(self._connstr)
+            self._dbname = config['DB_NAME']
+            self._db = conn[self._dbname]
             self._ns = config['ENV']
             self._tokenmaps = get_tokenmaps(self)
         else:
@@ -25,9 +26,10 @@ class MongoDbWrapper(object):
         app.extensions['data_wrapper'] = app.extensions.get('data_wrapper', {})
         app.extensions['data_wrapper']['db'] = app.extensions['data_wrapper'].get('db', None)
         if not app.extensions['data_wrapper']['db']:
-            conn = MongoClient(app.config['DB_CONNECTION_STRING'])
-            dbname = app.config['DB_NAME']
-            app.extensions['data_wrapper']['db'] = conn[dbname]
+            self._connstr = app.config['DB_CONNECTION_STRING']
+            conn = MongoClient(self._connstr)
+            self._dbname = app.config['DB_NAME']
+            app.extensions['data_wrapper']['db'] = conn[self._dbname]
         app.extensions['data_wrapper']['ns'] = app.extensions['data_wrapper'].get('ns', app.config['ENV'])
 
         self._db = app.extensions['data_wrapper']['db']
@@ -44,6 +46,10 @@ class MongoDbWrapper(object):
             return self._tokenmaps[type][table]
         except:
             return {}
+
+    @property
+    def config(self):
+        return get_config(self)
 
     @property
     def db(self):

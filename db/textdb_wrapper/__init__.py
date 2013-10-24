@@ -1,4 +1,4 @@
-from db import flatten, unflatten, get_tokenmaps
+from db import flatten, unflatten, get_tokenmaps, get_config
 import os, types, json, glob
 
 
@@ -37,7 +37,11 @@ class TextDbWrapper(object):
     def get_collection_names(self):
         ns_collections = glob.glob("%s/%s.*" % (self.db, self.ns))
         return [collection.replace("%s/%s." % (self.db, self.ns), '', 1) for collection in ns_collections]
-        
+    
+    @property
+    def config(self):
+        return get_config(self)
+    
     @property
     def db(self):
         return self._db
