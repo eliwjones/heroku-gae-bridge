@@ -88,7 +88,7 @@ def get_tokenmaps(data_class):
 
 def init_replication(data_class, destination_hostname, replication_id = None):
     if not replication_id:
-        replication_id = "%s.%s.%s" % (time.strftime("%Y%m%d%H%M%S", time.localtime()), data_class.db, data_class.ns)
+        replication_id = "%s.%s.%s" % (time.strftime("%Y%m%d%H%M%S", time.localtime()), data_class.ns)
     
     """ If can find replication_id in replication collection??? check for stop point and continue? raise exception?? """
     collections = data_class.get_collection_names()
@@ -132,7 +132,7 @@ def replicate_batch(collection, metadata, document_batch, destination_hostname):
       3. Track?? Or just look for missing batches later?
       4. destination host should report back on received batches.
     """
-    data_batch = {'metadata' : metadata, 'document_batch' : document_batch}
+    data_batch = {'collection' : collection ,'metadata' : metadata, 'document_batch' : document_batch}
     serialized_batch = json.dumps(data_batch)
     compressed_batch = zlib.compress(serialized_batch, 9)
     result = requests.post("http://%s/replicate/batch" % (destination_hostname), data = compressed_batch)

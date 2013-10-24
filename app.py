@@ -48,6 +48,28 @@ for view in views:
     app.register_blueprint(blueprint)
 
 
+@app.route("/replicate/batch", methods=['GET', 'POST'])
+def put_batch():
+    from flask import request
+    if request.method == 'GET':
+        return "I expect a POST"
+    import json, zlib
+    data = request.data
+    data_batch = json.loads(zlib.decompress(data))
+
+    old_ns = data_class.ns
+    """ Currently, this is something like 20130601123015.somenamespace """
+    data_class._ns = data_batch['metadata']['_id']
+
+    tokenmap = data_batch['metadata']['tokenmap']
+    if tokenmap:
+        tokenmap['_id'] = data_batch['collection']
+        data_class.put('tokenmaps', tokenmap, replace = True)
+
+    for document in data_batch['document_batch']:
+        data_class.put(data_batch['collection'], document, replace = True)
+    data_class._ns = old_ns
+    return "Thanks"
 
 @app.before_request
 def global_data_class():
