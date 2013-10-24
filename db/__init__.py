@@ -101,14 +101,14 @@ def init_replication(data_class, destination_hostname, replication_id = None):
 def build_metadata(config, collection, destination_hostname, replication_id):
     data_class = get_data_class_from_config(config)
     """ Loop over all documents in collection and build meta. """
-    meta_data = build_metadata(data_class.find(collection, {}))
-    meta_data['_id'] = "%s.%s" % (replication_id, collection)
-    data_class.update('metadata', meta_data, replace = True)
+    metadata = build_metadata(data_class.find(collection, {}))
+    metadata['_id'] = "%s.%s" % (replication_id, collection)
+    data_class.update('metadata', metadata, replace = True)
 
     """ Fire off async task to replicate collection. """
-    deferred.defer(replicate_collection, collection, destination_hostname, data_class.config)
+    deferred.defer(replicate_collection, collection, metadata, destination_hostname, data_class.config)
 
-def replicate_collection(collection, destination_hostname, config):
+def replicate_collection(collection, metadata, destination_hostname, config):
     data_class = get_data_class_from_config(config)
     
     """ Chunk into batches of 100 or 1000 and track progress? """
@@ -118,13 +118,13 @@ def replicate_collection(collection, destination_hostname, config):
     for idx, document in enumerate(collection_cursor):
         document_batch.append(document)
         if idx%1000 and idx > 0:
-            replicate_batch(collection, document_batch, destination_hostname)
+            replicate_batch(collection, metadata, document_batch, destination_hostname)
             document_batch = []
     if document_batch:
-        replicate_batch(collection, document_batch, destination_hostname)
+        replicate_batch(collection, metadata, document_batch, destination_hostname)
     return "Replicated!! %s %s" % (collection, destination_hostname)
 
-def replicate_batch(collection, document_batch, destination_hostname):
+def replicate_batch(collection, metadata, document_batch, destination_hostname):
     import json, zlib, requests
     """
       1. serialize and compress batch.
@@ -132,10 +132,11 @@ def replicate_batch(collection, document_batch, destination_hostname):
       3. Track?? Or just look for missing batches later?
       4. destination host should report back on received batches.
     """
-    serialized_batch = json.dumps(document_batch)
+    data_batch = {'metadata' : metadata, 'document_batch' : document_batch}
+    serialized_batch = json.dumps(data_batch)
     compressed_batch = zlib.compress(serialized_batch, 9)
-    result = requests.post("http://%s/replicate" % (destination_hostname), data = compressed_batch)
-    return "Replicated %s %s %s with Result: %s" % (collection, document_batch, destination_hostname, result)
+    result = requests.post("http://%s/replicate/batch" % (destination_hostname), data = compressed_batch)
+    return "Replicated %s %s %s %s with Result: %s" % (collection, metadata, document_batch, destination_hostname, result)
 
 def get_data_class_from_config(config):
     data_wrapper = __import__('db.' + config['DB_CLASS_FOLDER'], fromlist = [config['DB_CLASS_NAME']])
