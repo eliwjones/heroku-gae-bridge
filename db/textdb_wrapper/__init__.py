@@ -34,6 +34,10 @@ class TextDbWrapper(object):
         except:
             return {}
         
+    def get_collection_names(self):
+        ns_collections = glob.glob("%s/%s.*" % (self.db, self.ns))
+        return [collection.replace("%s/%s." % (self.db, self.ns), '', 1) for collection in ns_collections]
+        
     @property
     def db(self):
         return self._db
