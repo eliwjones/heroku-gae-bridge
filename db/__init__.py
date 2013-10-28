@@ -6,7 +6,7 @@ else:
 
 def get_config(data_class):
     db_class_name = data_class.__class__.__name__
-    db_class_folder = db_class_name.lower().replace('dbwrapper','db_wrapper')
+    db_class_folder = db_class_name.lower().replace('wrapper','_wrapper')
     config = {'ENV' : data_class._ns, 'DB_NAME' : getattr(data_class, '_dbname', None), 'DB_CONNECTION_STRING' : getattr(data_class, '_connstr', None), 'DB_CLASS_NAME' : db_class_name, 'DB_CLASS_FOLDER' : db_class_folder}
     return config
 
@@ -126,7 +126,7 @@ def replicate_collection(collection, metadata, replication_id, destination_hostn
     return "Replicated!! %s %s %s" % (collection, destination_hostname, replication_id)
 
 def replicate_batch(collection, metadata, replication_id, document_batch, destination_hostname):
-    import json, zlib, requests
+    import json, zlib, requests, base64
     """
       1. serialize and compress batch.
       2. post to replicate endpoint on destination_hostname.
@@ -135,8 +135,9 @@ def replicate_batch(collection, metadata, replication_id, document_batch, destin
     """
     data_batch = {'collection' : collection ,'metadata' : metadata, 'replication_id' : replication_id, 'document_batch' : document_batch}
     serialized_batch = json.dumps(data_batch)
-    compressed_batch = zlib.compress(serialized_batch, 9)
-    result = requests.post("http://%s/replicate/batch" % (destination_hostname), data = compressed_batch)
+    headers = {'Content-Type': 'application/octet-stream', 'Content-Transfer-Encoding' : 'base64'}
+    compressed_batch = base64.b64encode(zlib.compress(serialized_batch, 9))
+    result = requests.post("http://%s/replicate/batch" % (destination_hostname), data = compressed_batch, headers = headers)
     return "Replicated %s %s %s %s with Result: %s" % (collection, metadata, document_batch, destination_hostname, result)
 
 def get_data_class_from_config(config):
@@ -146,8 +147,8 @@ def get_data_class_from_config(config):
     return data_class
 
 def accept_replicated_batch(data_class, data):
-    import json, zlib
-    data_batch = json.loads(zlib.decompress(data))
+    import json, zlib, base64
+    data_batch = json.loads(zlib.decompress(base64.b64decode(data)))
     old_ns = data_class.ns
     """ Currently, this is something like 20130601123015.somenamespace """
     data_class._ns = data_batch['replication_id']
@@ -157,6 +158,11 @@ def accept_replicated_batch(data_class, data):
             tokenmap['_id'] = data_batch['collection']
             data_class.update('tokenmaps', tokenmap['_id'], tokenmap, upsert = True, replace = True)
             data_class.refresh_tokenmaps()
+            while not data_class.get_token_map(data_batch['collection'], 'encode'):
+                data_class.refresh_tokenmaps()
+                from time import sleep
+                print "failed.. trying again. Really should put in the time to enable transactions for GAE."
+                sleep(1)
 
         for document in data_batch['document_batch']:
             data_class.update(data_batch['collection'], document['_id'], document, upsert = True, replace = True)

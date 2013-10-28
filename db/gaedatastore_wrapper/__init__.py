@@ -1,4 +1,4 @@
-from db import flatten, unflatten, get_tokenmaps, get_config
+import db
 from google.appengine.ext import ndb
 
 class GaeDatastoreWrapper(object):
@@ -8,7 +8,7 @@ class GaeDatastoreWrapper(object):
             self.init_app(app)
         elif config:
             self._ns = config['ENV']
-            self._tokenmaps = get_tokenmaps(self)
+            self._tokenmaps = db.get_tokenmaps(self)
         else:
             raise Exception("app or config please!")
 
@@ -16,11 +16,11 @@ class GaeDatastoreWrapper(object):
         app.extensions['data_wrapper'] = app.extensions.get('data_wrapper', {})
         app.extensions['data_wrapper']['ns'] = app.extensions['data_wrapper'].get('ns', app.config['ENV'])
         self._ns = app.extensions['data_wrapper']['ns']
-        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', get_tokenmaps(self))
+        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', db.get_tokenmaps(self))
         self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
             
     def refresh_tokenmaps(self):
-        self._tokenmaps = get_tokenmaps(self)
+        self._tokenmaps = db.get_tokenmaps(self)
 
     def get_token_map(self, table, type):
         try:
@@ -28,16 +28,27 @@ class GaeDatastoreWrapper(object):
         except:
             return {}
 
+    def get_collection_names(self):
+        from google.appengine.ext.ndb.metadata import Kind
+        query = ndb.Query(kind = '__kind__', namespace = self.ns)
+        return [collection.kind_name for collection in query.fetch()]
+
+    def init_replication(self, destination_hostname):
+        return db.init_replication(self, destination_hostname)
+    
+    def accept_replicated_batch(self, data):
+        return db.accept_replicated_batch(self, data)
+    
     @property
     def config(self):
-        return get_config(self)
+        return db.get_config(self)
 
     @property
     def ns(self):
         return self._ns
 
     def create_class(self, name, key_name = None):
-        db_class = type(name, (ndb.Expando,), {})
+        db_class = type(str(name), (ndb.Expando,), {})
         if key_name:
             return db_class(id = key_name, namespace = self.ns)
         else:
@@ -50,7 +61,7 @@ class GaeDatastoreWrapper(object):
         results = None
         if key_name:
             return ndb.Key(collection.__class__.__name__, key_name, namespace = self.ns)
-        flattened_props = flatten(properties, token_map = self.get_token_map(table, 'encode'))
+        flattened_props = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         for prop in flattened_props:
             query.filter(ndb.GenericProperty(prop) == flattened_props[prop])
         return query
@@ -62,7 +73,7 @@ class GaeDatastoreWrapper(object):
             if key_only:
                 return result.key
             key_name = result.key.id()
-            result = unflatten(result.to_dict(), token_map = self.get_token_map(table, 'decode'))
+            result = db.unflatten(result.to_dict(), token_map = self.get_token_map(table, 'decode'))
             result['_id'] = key_name
         return result
 
@@ -73,9 +84,10 @@ class GaeDatastoreWrapper(object):
     def put(self, table, properties):
         key_name = properties.pop('_id', None)
         collection = self.create_class(table, key_name)
-        flattened_props = flatten(properties, token_map = self.get_token_map(table, 'encode'))
-        for key in flattened_props:
-            setattr(collection, key, flattened_props[key])
+        if table not in ['metadata', 'tokenmaps']:
+            properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
+        for key in properties:
+            setattr(collection, key, properties[key])
         return collection.put().id()
 
     def find(self, table, properties, limit = None, keys_only = False):
@@ -100,14 +112,6 @@ class GaeDatastoreWrapper(object):
             document[key] = properties[key]
         return self.put(table, document)
 
-
-    """ Replication related functions. """
-
-    def get_collection_names(self):
-        from google.appengine.ext.ndb.metadata import Kind
-        query = ndb.Query(kind = '__kind__', namespace = self.ns)
-        return [collection.kind_name for collection in query.fetch()]
-    
     class DuplicateKeyError(Exception):
         """ To pass dup exception through to wrapper.
         """
@@ -121,7 +125,7 @@ class GaeDatastoreWrapper(object):
         def next(self):
             result = self._wrapped.next()
             key_name = result.key.id()
-            result_dict = unflatten(result.to_dict(), token_map = self._token_map)
+            result_dict = db.unflatten(result.to_dict(), token_map = self._token_map)
             result_dict['_id'] = key_name
             return result_dict
         def __getattr__(self, attr):
