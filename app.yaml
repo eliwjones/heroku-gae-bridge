@@ -20,6 +20,7 @@ env_variables:
 
 builtins:
 - deferred: on
+- remote_api: on
 
 handlers:
 - url: /.*
