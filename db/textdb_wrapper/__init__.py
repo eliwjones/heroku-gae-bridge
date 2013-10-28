@@ -1,4 +1,4 @@
-from db import flatten, unflatten, get_tokenmaps, get_config
+import db
 import os, types, json, glob
 
 
@@ -8,9 +8,10 @@ class TextDbWrapper(object):
         if app:
             self.init_app(app)
         elif config:
+            self._dbname = config['DB_NAME']
             self._db = os.path.join(os.path.dirname(os.path.abspath(__file__)), config['DB_NAME'])
             self._ns = config['ENV']
-            self._tokenmaps = get_tokenmaps(self)
+            self._tokenmaps = db.get_tokenmaps(self)
         else:
             raise Exception("app or config please!")
  
@@ -19,14 +20,15 @@ class TextDbWrapper(object):
         app.extensions['data_wrapper']['db'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), app.config['DB_NAME'])
         app.extensions['data_wrapper']['ns'] = app.extensions['data_wrapper'].get('ns', app.config['ENV'])
         
+        self._dbname = app.config['DB_NAME']
         self._db = app.extensions['data_wrapper']['db']
         self._ns = app.extensions['data_wrapper']['ns']
         
-        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', get_tokenmaps(self))
+        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', db.get_tokenmaps(self))
         self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
         
     def refresh_tokenmaps(self):
-        self._tokenmaps = get_tokenmaps(self)
+        self._tokenmaps = db.get_tokenmaps(self)
         
     def get_token_map(self, table, type):
         try:
@@ -38,9 +40,15 @@ class TextDbWrapper(object):
         ns_collections = glob.glob("%s/%s.*" % (self.db, self.ns))
         return [collection.replace("%s/%s." % (self.db, self.ns), '', 1) for collection in ns_collections]
     
+    def init_replication(self, destination_hostname):
+        return db.init_replication(self, destination_hostname)
+    
+    def accept_replicated_batch(self, data):
+        return db.accept_replicated_batch(self, data)
+    
     @property
     def config(self):
-        return get_config(self)
+        return db.get_config(self)
     
     @property
     def db(self):
@@ -57,7 +65,7 @@ class TextDbWrapper(object):
     def get(self, table, properties = None):
         document = None
         if properties:
-            properties = flatten(properties, token_map = self.get_token_map(table, 'encode'))
+            properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         try:
             collectionpath = self.get_collection(table)
             with open("%s/%s" % (collectionpath, properties["_id"])) as file:
@@ -66,13 +74,14 @@ class TextDbWrapper(object):
         except:
             pass
         if document:
-            document = unflatten(document, token_map = self.get_token_map(table, 'decode'))
+            document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
         return document
 
     def put(self, table, document, replace = False):
         if document is None or table is None:
             return
-        document = flatten(document, token_map = self.get_token_map(table, 'encode'))
+        if table not in ['metadata', 'tokenmaps']:
+            document = db.flatten(document, token_map = self.get_token_map(table, 'encode'))
         collectionpath = self.get_collection(table)
         if not replace and os.path.exists(collectionpath + '/' + document['_id']):
             raise self.DuplicateKeyError
@@ -82,7 +91,7 @@ class TextDbWrapper(object):
         except:
             if not os.path.exists(collectionpath):
                 os.makedirs(collectionpath)
-                return self.put(table, unflatten(document, token_map = self.get_token_map(table, 'decode')))
+                return self.put(table, db.unflatten(document, token_map = self.get_token_map(table, 'decode')))
             raise
         return document['_id']
 
@@ -95,7 +104,7 @@ class TextDbWrapper(object):
                 pass
 
     def find(self, table, properties, keys_only = False):
-        properties = flatten(properties, token_map = self.get_token_map(table, 'encode'))
+        properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         collectionpath = self.get_collection(table)
         documents = []
         document_paths = glob.glob(collectionpath + '/*')
@@ -113,14 +122,14 @@ class TextDbWrapper(object):
                 if keys_only:
                     document = document_path
                 else:
-                    document = unflatten(document, token_map = self.get_token_map(table, 'decode'))
+                    document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
                 documents.append(document)
         return documents
         
 
     def update(self, table, key, properties, upsert = False, replace = False):
         document = self.get(table, {'_id' : key})
-        if replace and document is not None:
+        if replace:
             document = {'_id' : key}
         if upsert and document is None:
             document = {'_id' : key}

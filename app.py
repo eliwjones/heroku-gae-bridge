@@ -14,7 +14,7 @@ else:
         import time
         current_time = time.asctime()
         collection = 'pmq_test_collection'
-        keyname = g.data_class.put(collection, {'_id' : 'pmq_test_keyname', 'nested' : {'time' : {'info': current_time}}}, replace=True)
+        keyname = g.data_class.update(collection, 'pmq_test_keyname', {'_id' : 'pmq_test_keyname', 'nested' : {'time' : {'info': current_time}}}, upsert=True, replace=True)
         from queue import filesystemqueue
         from queue.consumers import *
         filesystemqueue.defer(read_textdb_func, collection, {'_id':keyname}, app.config)
@@ -53,22 +53,7 @@ def put_batch():
     from flask import request
     if request.method == 'GET':
         return "I expect a POST"
-    import json, zlib
-    data = request.data
-    data_batch = json.loads(zlib.decompress(data))
-
-    old_ns = data_class.ns
-    """ Currently, this is something like 20130601123015.somenamespace """
-    data_class._ns = data_batch['metadata']['_id']
-
-    tokenmap = data_batch['metadata']['tokenmap']
-    if tokenmap:
-        tokenmap['_id'] = data_batch['collection']
-        data_class.put('tokenmaps', tokenmap, replace = True)
-
-    for document in data_batch['document_batch']:
-        data_class.put(data_batch['collection'], document, replace = True)
-    data_class._ns = old_ns
+    data_class.accept_replicated_batch(request.data)
     return "Thanks"
 
 @app.before_request

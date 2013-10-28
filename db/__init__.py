@@ -59,7 +59,7 @@ def build_metadata(cursor):
             keyname = document['_id']
             key_count += 1
             if key_count % partition_size == 0:
-                key_distribution[key_count] = keyname
+                key_distribution[str(key_count)] = keyname
             del document['_id']
         except:
             pass
@@ -69,12 +69,12 @@ def build_metadata(cursor):
                 prop_data[prop] = 0
             prop_data[prop] += 1
     # Set final keyname in distribution.
-    key_distribution[key_count] = keyname
+    key_distribution[str(key_count)] = keyname
     for prop in prop_data:
         prop_data[prop] *= len(prop)
     prop_frequency = sorted(prop_data, key = prop_data.__getitem__, reverse=True)
-    token_map = { prop : str(idx) for idx, prop in enumerate(prop_frequency) }
-    return {'token_map' : token_map, 'key_distribution' : key_distribution, 'partition_size' : partition_size}
+    tokenmap = { prop : str(idx) for idx, prop in enumerate(prop_frequency) }
+    return {'tokenmap' : tokenmap, 'key_distribution' : key_distribution, 'partition_size' : partition_size}
 
 
 def get_tokenmaps(data_class):
@@ -88,27 +88,28 @@ def get_tokenmaps(data_class):
 
 def init_replication(data_class, destination_hostname, replication_id = None):
     if not replication_id:
-        replication_id = "%s.%s.%s" % (time.strftime("%Y%m%d%H%M%S", time.localtime()), data_class.ns)
+        replication_id = "%s.%s" % (time.strftime("%Y%m%d%H%M%S", time.localtime()), data_class.ns)
     
     """ If can find replication_id in replication collection??? check for stop point and continue? raise exception?? """
     collections = data_class.get_collection_names()
     for collection in collections:
         if collection in ['tokenmaps', 'metadata']:
             continue
-        deferred.defer(build_metadata, data_class.config, collection, destination_hostname, replication_id)
-    return "All collections queued for async metadata builds."
+        deferred.defer(build_replication_metadata, data_class.config, collection, destination_hostname, replication_id)
+    return replication_id
 
-def build_metadata(config, collection, destination_hostname, replication_id):
+def build_replication_metadata(config, collection, destination_hostname, replication_id):
     data_class = get_data_class_from_config(config)
     """ Loop over all documents in collection and build meta. """
     metadata = build_metadata(data_class.find(collection, {}))
     metadata['_id'] = "%s.%s" % (replication_id, collection)
-    data_class.update('metadata', metadata, replace = True)
+    data_class.update('metadata', metadata['_id'], metadata, replace = True)
 
     """ Fire off async task to replicate collection. """
-    deferred.defer(replicate_collection, collection, metadata, destination_hostname, data_class.config)
+    deferred.defer(replicate_collection, collection, metadata, replication_id, destination_hostname, data_class.config)
+    return "replicate_collection call was deferred!"
 
-def replicate_collection(collection, metadata, destination_hostname, config):
+def replicate_collection(collection, metadata, replication_id, destination_hostname, config):
     data_class = get_data_class_from_config(config)
     
     """ Chunk into batches of 100 or 1000 and track progress? """
@@ -118,13 +119,13 @@ def replicate_collection(collection, metadata, destination_hostname, config):
     for idx, document in enumerate(collection_cursor):
         document_batch.append(document)
         if idx%1000 and idx > 0:
-            replicate_batch(collection, metadata, document_batch, destination_hostname)
+            replicate_batch(collection, metadata, replication_id, document_batch, destination_hostname)
             document_batch = []
     if document_batch:
-        replicate_batch(collection, metadata, document_batch, destination_hostname)
-    return "Replicated!! %s %s" % (collection, destination_hostname)
+        replicate_batch(collection, metadata, replication_id, document_batch, destination_hostname)
+    return "Replicated!! %s %s %s" % (collection, destination_hostname, replication_id)
 
-def replicate_batch(collection, metadata, document_batch, destination_hostname):
+def replicate_batch(collection, metadata, replication_id, document_batch, destination_hostname):
     import json, zlib, requests
     """
       1. serialize and compress batch.
@@ -132,7 +133,7 @@ def replicate_batch(collection, metadata, document_batch, destination_hostname):
       3. Track?? Or just look for missing batches later?
       4. destination host should report back on received batches.
     """
-    data_batch = {'collection' : collection ,'metadata' : metadata, 'document_batch' : document_batch}
+    data_batch = {'collection' : collection ,'metadata' : metadata, 'replication_id' : replication_id, 'document_batch' : document_batch}
     serialized_batch = json.dumps(data_batch)
     compressed_batch = zlib.compress(serialized_batch, 9)
     result = requests.post("http://%s/replicate/batch" % (destination_hostname), data = compressed_batch)
@@ -143,3 +144,24 @@ def get_data_class_from_config(config):
     _class = getattr(data_wrapper, config['DB_CLASS_NAME'])
     data_class = _class(config = config)
     return data_class
+
+def accept_replicated_batch(data_class, data):
+    import json, zlib
+    data_batch = json.loads(zlib.decompress(data))
+    old_ns = data_class.ns
+    """ Currently, this is something like 20130601123015.somenamespace """
+    data_class._ns = data_batch['replication_id']
+    try:
+        tokenmap = data_batch['metadata']['tokenmap']
+        if tokenmap:
+            tokenmap['_id'] = data_batch['collection']
+            data_class.update('tokenmaps', tokenmap['_id'], tokenmap, upsert = True, replace = True)
+            data_class.refresh_tokenmaps()
+
+        for document in data_batch['document_batch']:
+            data_class.update(data_batch['collection'], document['_id'], document, upsert = True, replace = True)
+    except Exception, e:
+        print "Problem accepting batch.  Exception: %s" % (e)
+    finally:
+        data_class._ns = old_ns
+        data_class.refresh_tokenmaps()

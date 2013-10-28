@@ -1,4 +1,4 @@
-from db import flatten, unflatten, get_tokenmaps, get_config
+import db
 try:
     from gevent import monkey; monkey.patch_all()
 except ImportError:
@@ -18,7 +18,7 @@ class MongoDbWrapper(object):
             self._dbname = config['DB_NAME']
             self._db = conn[self._dbname]
             self._ns = config['ENV']
-            self._tokenmaps = get_tokenmaps(self)
+            self._tokenmaps = db.get_tokenmaps(self)
         else:
             raise Exception("app or config please!")
 
@@ -35,11 +35,11 @@ class MongoDbWrapper(object):
         self._db = app.extensions['data_wrapper']['db']
         self._ns = app.extensions['data_wrapper']['ns']
 
-        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', get_tokenmaps(self))
+        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', db.get_tokenmaps(self))
         self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
 
     def refresh_tokenmaps(self):
-        self._tokenmaps = get_tokenmaps(self)
+        self._tokenmaps = db.get_tokenmaps(self)
 
     def get_token_map(self, table, type):
         try:
@@ -47,9 +47,15 @@ class MongoDbWrapper(object):
         except:
             return {}
 
+    def init_replication(self, destination_hostname):
+        return db.init_replication(self, destination_hostname)
+    
+    def accept_replicated_batch(self, data):
+        return db.accept_replicated_batch(self, data)
+
     @property
     def config(self):
-        return get_config(self)
+        return db.get_config(self)
 
     @property
     def db(self):
@@ -71,10 +77,10 @@ class MongoDbWrapper(object):
     
     def get(self, table, properties = None):
         if properties:
-            properties = flatten(properties, token_map = self.get_token_map(table, 'encode'))
+            properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         document = self.get_collection(table).find_one(properties)
         if document:
-            document = unflatten(document, token_map = self.get_token_map(table, 'decode'))
+            document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
         return document
     
     def remove(self, table, properties):
@@ -84,23 +90,25 @@ class MongoDbWrapper(object):
         if document is None or table is None:
             return
         try:
-            document = flatten(document, token_map = self.get_token_map(table, 'encode'))
+            if table not in ['metadata', 'tokenmaps']:
+                document = db.flatten(document, token_map = self.get_token_map(table, 'encode'))
             return self.get_collection(table).insert(document)
         except MongoDuplicateKeyError:
             raise self.DuplicateKeyError('', '')
 
     def find(self, table, properties):
-        properties = flatten(properties, token_map = self.get_token_map(table, 'encode'))
+        properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         cursor = self.get_collection(table).find(properties)
         return self.PymongoCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
 
     def update(self, table, key, properties, upsert = False, replace = False):
+        if table not in ['metadata', 'tokenmaps']:
+            properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         if replace:
-            update = flatten(properties, token_map = self.get_token_map(table, 'encode'))
+            update = properties
         else:
             properties.pop('_id', None)
-            flattened_props = flatten(properties, token_map = self.get_token_map(table, 'encode'))
-            update = {"$set" : flattened_props}
+            update = {"$set" : properties}
         self.get_collection(table).update({'_id' : key}, update, upsert = upsert)
 
     def startswith(self, table, starts_with):
@@ -119,6 +127,6 @@ class MongoDbWrapper(object):
             self._token_map = token_map
         def next(self):
             result = self._wrapped.next()
-            return unflatten(result, self._token_map)
+            return db.unflatten(result, self._token_map)
         def __getattr__(self, attr):
             return getattr(self._wrapped, attr)
