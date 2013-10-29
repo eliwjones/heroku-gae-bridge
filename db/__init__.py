@@ -103,7 +103,7 @@ def build_replication_metadata(config, collection, destination_hostname, replica
     """ Loop over all documents in collection and build meta. """
     metadata = build_metadata(data_class.find(collection, {}))
     metadata['_id'] = "%s.%s" % (replication_id, collection)
-    data_class.update('metadata', metadata['_id'], metadata, replace = True)
+    data_class.put('metadata', metadata, replace = True, consistency = 'STRONG')
 
     """ Fire off async task to replicate collection. """
     deferred.defer(replicate_collection, collection, metadata, replication_id, destination_hostname, data_class.config)
@@ -156,18 +156,37 @@ def accept_replicated_batch(data_class, data):
         tokenmap = data_batch['metadata']['tokenmap']
         if tokenmap:
             tokenmap['_id'] = data_batch['collection']
-            data_class.update('tokenmaps', tokenmap['_id'], tokenmap, upsert = True, replace = True)
+            data_class.put('tokenmaps', tokenmap, replace = True, consistency = 'STRONG')
             data_class.refresh_tokenmaps()
-            while not data_class.get_token_map(data_batch['collection'], 'encode'):
-                data_class.refresh_tokenmaps()
-                from time import sleep
-                print "failed.. trying again. Really should put in the time to enable transactions for GAE."
-                sleep(1)
-
         for document in data_batch['document_batch']:
-            data_class.update(data_batch['collection'], document['_id'], document, upsert = True, replace = True)
+            data_class.put(data_batch['collection'], document, replace = True)
     except Exception, e:
         print "Problem accepting batch.  Exception: %s" % (e)
     finally:
         data_class._ns = old_ns
         data_class.refresh_tokenmaps()
+
+def strong_consistency_option(F):
+    def wrapped(self, table, document, **kwargs):
+        consistency = kwargs.pop('consistency','')
+        if consistency == 'STRONG':
+            from copy import deepcopy
+            document_deepcopy = deepcopy(document)
+
+        put_result = F(self, table, document, **kwargs)
+
+        if consistency == 'STRONG':
+            counter = 0
+            result = self.get(table, {'_id' : document_deepcopy['_id']})
+            while result != document_deepcopy and counter < 3:
+                from time import sleep
+                counter += 1
+                sleep(counter*(0.5))
+                result = self.get(table, {'_id' : document_deepcopy['_id']})
+            if result != document_deepcopy:
+                #raise Exception("Strong consistency was requested but documents do not match!\n%s != %s " % (result, prop_deepcopy))
+                put_result = {'result' : put_result, 'verified_read' : False}
+            else:
+                put_result = {'result' : put_result, 'verified_read' : True}
+        return put_result
+    return wrapped

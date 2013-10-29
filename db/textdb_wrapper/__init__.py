@@ -37,8 +37,8 @@ class TextDbWrapper(object):
             return {}
         
     def get_collection_names(self):
-        ns_collections = glob.glob("%s/%s.*" % (self.db, self.ns))
-        return [collection.replace("%s/%s." % (self.db, self.ns), '', 1) for collection in ns_collections]
+        ns_collections = glob.glob("%s/%s.*" % (self._db, self.ns))
+        return [collection.replace("%s/%s." % (self._db, self.ns), '', 1) for collection in ns_collections]
     
     def init_replication(self, destination_hostname):
         return db.init_replication(self, destination_hostname)
@@ -51,15 +51,11 @@ class TextDbWrapper(object):
         return db.get_config(self)
     
     @property
-    def db(self):
-        return self._db
-    
-    @property
     def ns(self):
         return self._ns
     
     def get_collection(self, table):
-        collection_path = "%s/%s.%s" % (self.db, self.ns, table)
+        collection_path = "%s/%s.%s" % (self._db, self.ns, table)
         return collection_path
 
     def get(self, table, properties = None):
@@ -77,6 +73,7 @@ class TextDbWrapper(object):
             document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
         return document
 
+    @db.strong_consistency_option
     def put(self, table, document, replace = False):
         if document is None or table is None:
             return
@@ -138,9 +135,9 @@ class TextDbWrapper(object):
 
     def startswith(self, table, starts_with):
         import glob
-        filepath = "%s/%s" % (self.db, table)
+        collectionpath = self.get_collection(table)
         results = ""
-        for filename in glob.glob("%s/%s*" % (filepath, starts_with)):
+        for filename in glob.glob("%s/%s*" % (collectionpath, starts_with)):
             with open(filename) as file:
                 results = results + file.read().rstrip()
                 results = results + ','

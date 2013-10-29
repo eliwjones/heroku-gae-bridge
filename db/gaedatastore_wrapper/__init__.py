@@ -81,6 +81,7 @@ class GaeDatastoreWrapper(object):
         keys_to_delete = self.find(table, properties, keys_only = True)
         ndb.delete_multi(keys_to_delete)
 
+    @db.strong_consistency_option
     def put(self, table, properties):
         key_name = properties.pop('_id', None)
         collection = self.create_class(table, key_name)

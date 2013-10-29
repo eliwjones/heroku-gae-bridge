@@ -56,24 +56,20 @@ class MongoDbWrapper(object):
     @property
     def config(self):
         return db.get_config(self)
-
-    @property
-    def db(self):
-        return self._db
     
     @property
     def ns(self):
         return self._ns
 
     def get_collection_names(self):
-        ns_collections = self.db.collection_names(include_system_collections=False)
+        ns_collections = self._db.collection_names(include_system_collections=False)
         ns_collections = [collection.replace("%s." % self._ns, '', 1) for collection in ns_collections if collection.startswith("%s." % self._ns)]
         return ns_collections
     
     def get_collection(self, table):
         ns = self.ns
         collection_name = "%s.%s" % (ns, table)
-        return self.db[collection_name]
+        return self._db[collection_name]
     
     def get(self, table, properties = None):
         if properties:
@@ -86,7 +82,8 @@ class MongoDbWrapper(object):
     def remove(self, table, properties):
         return self.get_collection(table).remove(properties)
     
-    def put(self, table, document):
+    @db.strong_consistency_option
+    def put(self, table, document, replace = False):
         if document is None or table is None:
             return
         try:
@@ -94,7 +91,11 @@ class MongoDbWrapper(object):
                 document = db.flatten(document, token_map = self.get_token_map(table, 'encode'))
             return self.get_collection(table).insert(document)
         except MongoDuplicateKeyError:
-            raise self.DuplicateKeyError('', '')
+            if not replace:
+                raise self.DuplicateKeyError('', '')
+            else:
+                self.remove(table,{'_id':document['_id']})
+                return self.get_collection(table).insert(document)
 
     def find(self, table, properties):
         properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))

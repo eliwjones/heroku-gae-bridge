@@ -40,7 +40,7 @@ if 'APPENGINE' not in os.environ.keys():
         import time
         current_time = time.asctime()
         collection = 'pmq_test_collection'
-        keyname = data_class.update(collection, 'pmq_test_keyname', {'_id' : 'pmq_test_keyname', 'nested' : {'time' : {'info': current_time}}}, upsert=True, replace=True)
+        keyname = data_class.put(collection, {'_id' : 'pmq_test_keyname', 'nested' : {'time' : {'info': current_time}}}, replace=True)
         from queue import filesystemqueue
         from queue.consumers import read_textdb_func
         filesystemqueue.defer(read_textdb_func, collection, {'_id':keyname}, app.config)
