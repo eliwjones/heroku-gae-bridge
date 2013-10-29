@@ -1,28 +1,54 @@
-import glob, os, sys
-from flask import Flask, g
-
+import os
+from flask import Flask, Response
+    
 app = Flask(__name__, static_folder='static')
 app.config.from_object('default_settings')
-app.config.from_envvar('ENV_SETTINGS', silent=True)
 if 'APPENGINE' in os.environ.keys():
-    app.config['DB_CLASS_FOLDER'] = 'gaedatastore_wrapper'
-    app.config['DB_CLASS_NAME'] = 'GaeDatastoreWrapper'
-else:
-    from flask import Response
+    app.config.from_object('appengine_settings')
+app.config.from_envvar('ENV_SETTINGS', silent=True)
+
+data_wrapper = __import__('db.' + app.config['DB_CLASS_FOLDER'], fromlist = [app.config['DB_CLASS_NAME']])
+_class = getattr(data_wrapper, app.config['DB_CLASS_NAME'])
+data_class = _class(app)
+
+
+@app.route('/')
+def index():
+    return Response("I am a reference application for a pan-cloud application.", content_type = "text/plain")
+
+@app.route("/replicate/batch", methods=['GET', 'POST'])
+def replicate_batch():
+    from flask import request
+    if request.method == 'GET':
+        return "I expect a POST"
+    data_class.accept_replicated_batch(request.data)
+    return "Thanks"
+
+@app.route('/test/dataclass')
+def test_dataclass():
+    collection = 'my_test_collection'
+    results = list(data_class.find(collection, {}))
+    if not results:
+        data_class.put(collection, {'_id' : 'keyname_1', 'string_property' : 'yes this is a string', 'number_property' : 10101})
+        data_class.put(collection, {'_id' : 'keyname_2', 'string_property' : 'more strings', 'number_property' : 99})
+        results = list(data_class.find(collection, {}))
+    return Response("data_class.find()\nconfig:\n%s\nnamespace:\n%s\nresults:\n%s" % (data_class.config, data_class.ns, results), content_type="text/plain")
+
+if 'APPENGINE' not in os.environ.keys():
     @app.route("/pmqtest")
     def test_pmq():
         import time
         current_time = time.asctime()
         collection = 'pmq_test_collection'
-        keyname = g.data_class.update(collection, 'pmq_test_keyname', {'_id' : 'pmq_test_keyname', 'nested' : {'time' : {'info': current_time}}}, upsert=True, replace=True)
+        keyname = data_class.update(collection, 'pmq_test_keyname', {'_id' : 'pmq_test_keyname', 'nested' : {'time' : {'info': current_time}}}, upsert=True, replace=True)
         from queue import filesystemqueue
-        from queue.consumers import *
+        from queue.consumers import read_textdb_func
         filesystemqueue.defer(read_textdb_func, collection, {'_id':keyname}, app.config)
         return Response("Inserted keyname: %s! Check pmq log!!" % (keyname))
     @app.route("/pmqwork")
     def insert_work():
         from queue import filesystemqueue
-        from queue.consumers import *
+        from queue.consumers import my_func
         filesystemqueue.defer(my_func, "hello from heroku", _name = 'myfunctest')
         return Response("Inserted stuff to pmq.", content_type = "text/plain")
     @app.route("/pmqlog")
@@ -33,32 +59,6 @@ else:
         except:
             logresults = "No pmqlog results"
         return Response("LOG RESULTS:\n%s" % (logresults), content_type="text/plain")
-
-data_wrapper = __import__('db.' + app.config['DB_CLASS_FOLDER'], fromlist = [app.config['DB_CLASS_NAME']])
-_class = getattr(data_wrapper, app.config['DB_CLASS_NAME'])
-data_class = _class(app)
-
-
-filepath = os.path.dirname(os.path.abspath(__file__)) + "/views"
-views = [os.path.basename(module)[:-3] for module in glob.glob("views/*.py")]
-views = [view for view in views if view != '__init__']
-for view in views:
-    view_module = __import__('views.' + view, fromlist = [view])
-    blueprint = getattr(view_module, view)
-    app.register_blueprint(blueprint)
-
-
-@app.route("/replicate/batch", methods=['GET', 'POST'])
-def put_batch():
-    from flask import request
-    if request.method == 'GET':
-        return "I expect a POST"
-    data_class.accept_replicated_batch(request.data)
-    return "Thanks"
-
-@app.before_request
-def global_data_class():
-    g.data_class = data_class
 
 
 if 'APPENGINE' in os.environ.keys():
