@@ -193,7 +193,7 @@ def strong_consistency_option(F):
 
 def flattener(F):
     def decorated_method(self, table, properties, **kwargs):
-        if table not in ['metadata', 'tokenmaps']:
+        if properties and table not in ['metadata', 'tokenmaps']:
             properties =  flatten(properties, token_map = self.get_token_map(table, 'encode'))
         return F(self, table, properties, **kwargs)
     return decorated_method
