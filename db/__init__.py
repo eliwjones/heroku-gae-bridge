@@ -82,7 +82,7 @@ def get_tokenmaps(data_class):
     tokenmaps_cursor = data_class.find('tokenmaps', {})
     for tokenmap in tokenmaps_cursor:
         collection_name = tokenmap.pop('_id')
-        tokenmaps['encode'][collection_name] = flatten(tokenmap)
+        tokenmaps['encode'][collection_name] = tokenmap
         tokenmaps['decode'][collection_name] = { tokenmaps['encode'][collection_name][prop] : prop for prop in tokenmaps['encode'][collection_name] }
     return tokenmaps
 
@@ -190,3 +190,18 @@ def strong_consistency_option(F):
                 put_result = {'result' : put_result, 'verified_read' : True}
         return put_result
     return wrapped
+
+def flattener(F):
+    def decorated_method(self, table, properties, **kwargs):
+        if table not in ['metadata', 'tokenmaps']:
+            properties =  flatten(properties, token_map = self.get_token_map(table, 'encode'))
+        return F(self, table, properties, **kwargs)
+    return decorated_method
+
+def unflattener(F):
+    def decorated_method(self, table, properties, **kwargs):
+        document = F(self, table, properties, **kwargs)
+        if document and table not in ['metadata', 'tokenmaps']:
+            document = unflatten(document, token_map = self.get_token_map(table, 'decode'))
+        return document
+    return decorated_method

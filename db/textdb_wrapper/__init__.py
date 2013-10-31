@@ -27,6 +27,13 @@ class TextDbWrapper(object):
         app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', db.get_tokenmaps(self))
         self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
         
+    def drop_db(self, db_name):
+        import shutil
+        try:
+            shutil.rmtree(os.path.join(os.path.dirname(os.path.abspath(__file__)), db_name))
+        except OSError:
+            pass
+        
     def refresh_tokenmaps(self):
         self._tokenmaps = db.get_tokenmaps(self)
         
@@ -58,10 +65,10 @@ class TextDbWrapper(object):
         collection_path = "%s/%s.%s" % (self._db, self.ns, table)
         return collection_path
 
-    def get(self, table, properties = None):
+    @db.unflattener
+    @db.flattener
+    def get(self, table, properties):
         document = None
-        if properties:
-            properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         try:
             collectionpath = self.get_collection(table)
             with open("%s/%s" % (collectionpath, properties["_id"])) as file:
@@ -69,16 +76,13 @@ class TextDbWrapper(object):
             document = json.loads(result)
         except:
             pass
-        if document:
-            document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
         return document
 
     @db.strong_consistency_option
+    @db.flattener
     def put(self, table, document, replace = False):
         if document is None or table is None:
             return
-        if table not in ['metadata', 'tokenmaps']:
-            document = db.flatten(document, token_map = self.get_token_map(table, 'encode'))
         collectionpath = self.get_collection(table)
         if not replace and os.path.exists(collectionpath + '/' + document['_id']):
             raise self.DuplicateKeyError
@@ -88,7 +92,9 @@ class TextDbWrapper(object):
         except:
             if not os.path.exists(collectionpath):
                 os.makedirs(collectionpath)
-                return self.put(table, db.unflatten(document, token_map = self.get_token_map(table, 'decode')))
+                if table not in ['metadata', 'tokenmaps']:
+                    document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
+                return self.put(table, document)
             raise
         return document['_id']
 
@@ -100,8 +106,8 @@ class TextDbWrapper(object):
             except:
                 pass
 
+    @db.flattener
     def find(self, table, properties, keys_only = False):
-        properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         collectionpath = self.get_collection(table)
         documents = []
         document_paths = glob.glob(collectionpath + '/*')
@@ -118,7 +124,7 @@ class TextDbWrapper(object):
             if match:
                 if keys_only:
                     document = document_path
-                else:
+                elif table not in ['metadata', 'tokenmaps']:
                     document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
                 documents.append(document)
         return documents
