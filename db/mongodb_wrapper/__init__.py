@@ -8,15 +8,15 @@ from pymongo.cursor import Cursor
 from pymongo.errors import DuplicateKeyError as MongoDuplicateKeyError
 
 class MongoDbWrapper(object):
-    
+
     def __init__(self, app = None, config = None):
         if app:
             self.init_app(app)
         elif config:
             self._connstr = config['DB_CONNECTION_STRING']
-            conn = MongoClient(self._connstr)
+            self._conn = MongoClient(self._connstr)
             self._dbname = config['DB_NAME']
-            self._db = conn[self._dbname]
+            self._db = self._conn[self._dbname]
             self._ns = config['ENV']
             self._tokenmaps = db.get_tokenmaps(self)
         else:
@@ -27,9 +27,9 @@ class MongoDbWrapper(object):
         app.extensions['data_wrapper']['db'] = app.extensions['data_wrapper'].get('db', None)
         if not app.extensions['data_wrapper']['db']:
             self._connstr = app.config['DB_CONNECTION_STRING']
-            conn = MongoClient(self._connstr)
+            self._conn = MongoClient(self._connstr)
             self._dbname = app.config['DB_NAME']
-            app.extensions['data_wrapper']['db'] = conn[self._dbname]
+            app.extensions['data_wrapper']['db'] = self._conn[self._dbname]
         app.extensions['data_wrapper']['ns'] = app.extensions['data_wrapper'].get('ns', app.config['ENV'])
 
         self._db = app.extensions['data_wrapper']['db']
@@ -37,6 +37,10 @@ class MongoDbWrapper(object):
 
         app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', db.get_tokenmaps(self))
         self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
+
+    def drop_db(self, db_name):
+        if db_name:
+            self._conn.drop_database(db_name)
 
     def refresh_tokenmaps(self):
         self._tokenmaps = db.get_tokenmaps(self)
@@ -49,14 +53,14 @@ class MongoDbWrapper(object):
 
     def init_replication(self, destination_hostname):
         return db.init_replication(self, destination_hostname)
-    
+
     def accept_replicated_batch(self, data):
         return db.accept_replicated_batch(self, data)
 
     @property
     def config(self):
         return db.get_config(self)
-    
+
     @property
     def ns(self):
         return self._ns
@@ -65,12 +69,12 @@ class MongoDbWrapper(object):
         ns_collections = self._db.collection_names(include_system_collections=False)
         ns_collections = [collection.replace("%s." % self._ns, '', 1) for collection in ns_collections if collection.startswith("%s." % self._ns)]
         return ns_collections
-    
+
     def get_collection(self, table):
         ns = self.ns
         collection_name = "%s.%s" % (ns, table)
         return self._db[collection_name]
-    
+
     def get(self, table, properties = None):
         if properties:
             properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
@@ -78,10 +82,10 @@ class MongoDbWrapper(object):
         if document:
             document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
         return document
-    
+
     def remove(self, table, properties):
         return self.get_collection(table).remove(properties)
-    
+
     @db.strong_consistency_option
     def put(self, table, document, replace = False):
         if document is None or table is None:
@@ -122,7 +126,7 @@ class MongoDbWrapper(object):
 
     class PymongoCursorWrapper(Cursor):
         """ Mostly for proof-of-concept. Needed in GaeDatastoreWrapper.
-        """ 
+        """
         def __init__(self, wrapped, token_map):
             self._wrapped = wrapped
             self._token_map = token_map

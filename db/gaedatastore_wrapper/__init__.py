@@ -1,5 +1,10 @@
 import db
-from google.appengine.ext import ndb
+try:
+    from google.appengine.ext import ndb
+except ImportError:
+    import dev_appserver
+    dev_appserver.fix_sys_path()
+    from google.appengine.ext import ndb
 
 class GaeDatastoreWrapper(object):
 
@@ -18,7 +23,10 @@ class GaeDatastoreWrapper(object):
         self._ns = app.extensions['data_wrapper']['ns']
         app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', db.get_tokenmaps(self))
         self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
-            
+
+    def drop_db(self, db_name):
+        return "Remove all entities in namespace?"
+
     def refresh_tokenmaps(self):
         self._tokenmaps = db.get_tokenmaps(self)
 
@@ -35,10 +43,10 @@ class GaeDatastoreWrapper(object):
 
     def init_replication(self, destination_hostname):
         return db.init_replication(self, destination_hostname)
-    
+
     def accept_replicated_batch(self, data):
         return db.accept_replicated_batch(self, data)
-    
+
     @property
     def config(self):
         return db.get_config(self)
@@ -82,13 +90,15 @@ class GaeDatastoreWrapper(object):
         ndb.delete_multi(keys_to_delete)
 
     @db.strong_consistency_option
-    def put(self, table, properties):
-        key_name = properties.pop('_id', None)
+    def put(self, table, document):
+        if document is None or table is None:
+            return
+        key_name = document.pop('_id', None)
         collection = self.create_class(table, key_name)
         if table not in ['metadata', 'tokenmaps']:
-            properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
-        for key in properties:
-            setattr(collection, key, properties[key])
+            document = db.flatten(document, token_map = self.get_token_map(table, 'encode'))
+        for key in document:
+            setattr(collection, key, document[key])
         return collection.put().id()
 
     def find(self, table, properties, limit = None, keys_only = False):
@@ -102,7 +112,7 @@ class GaeDatastoreWrapper(object):
         else:
             results = self.DatastoreCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
         return results
-    
+
     def update(self, table, key, properties, upsert = False, replace = False):
         properties['_id'] = key
         if replace:
