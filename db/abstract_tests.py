@@ -45,6 +45,13 @@ class AbstractTest:
         self.data_class.update('test_update', 'keyname0', {'prop1' : 'new value one'})
         assert {'_id' : 'keyname0', 'prop1' : 'new value one', 'prop2' : 'value two', 'a new value' : 'with new information'} == self.data_class.get('test_update', {'_id' : 'keyname0'})
 
+    def test_startswith(self):
+        from operator import itemgetter
+        for document in [{'_id' : 'startswith_keyname0', 'value' : 'one value'}, {'_id' : 'startswith_keyname1', 'value' : 'another value'},
+                         {'_id' : 'doesnotstartswith_keyname0', 'value' : 'third value'}]:
+            self.data_class.put('test_startswith', document)
+        assert [{'_id' : 'startswith_keyname0', 'value' : 'one value'}, {'_id' : 'startswith_keyname1', 'value' : 'another value'}] == sorted(self.data_class.startswith('test_startswith', 'startswith'), key = itemgetter('_id'))
+
     def test_remove(self):
         result = self.data_class.put('test_remove', {'_id' : 'keyname0'})
         assert result == 'keyname0'

@@ -146,15 +146,15 @@ class TextDbWrapper(object):
         self.put(table, updated_document, replace = True)
 
     def startswith(self, table, starts_with):
-        import glob
         collectionpath = self.get_collection(table)
-        results = ""
-        for filename in glob.glob("%s/%s*" % (collectionpath, starts_with)):
-            with open(filename) as file:
-                results = results + file.read().rstrip()
-                results = results + ','
-        results = '[' + results[:-1] + ']'
-        return json.loads(results)
+        document_paths = glob.glob('%s/%s*' % (collectionpath, starts_with))
+        documents = []
+        for document_path in document_paths:
+            with open(document_path, 'r') as document_json:
+                document = json.loads(document_json.read())
+                if document:
+                    documents.append(document)
+        return documents
 
     class DuplicateKeyError(Exception):
         """ To pass dup exception through to wrapper.
