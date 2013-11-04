@@ -62,6 +62,7 @@ class GaeDatastoreWrapper(object):
         else:
             return db_class(namespace = self.ns)
 
+    @db.flattener
     def build_query(self, table, properties):
         key_name = properties.pop('_id', None)
         collection = self.create_class(table)
@@ -69,19 +70,19 @@ class GaeDatastoreWrapper(object):
         results = None
         if key_name:
             return ndb.Key(collection.__class__.__name__, key_name, namespace = self.ns)
-        flattened_props = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
-        for prop in flattened_props:
-            query.filter(ndb.GenericProperty(prop) == flattened_props[prop])
+        for prop in properties:
+            query.filter(ndb.GenericProperty(prop) == properties[prop])
         return query
 
-    def get(self, table, properties, key_only = False):
+    @db.unflattener
+    def get(self, table, properties, keys_only = False):
         query = self.build_query(table, properties)
         result = query.get()
         if result:
-            if key_only:
+            if keys_only:
                 return result.key
             key_name = result.key.id()
-            result = db.unflatten(result.to_dict(), token_map = self.get_token_map(table, 'decode'))
+            result = result.to_dict()
             result['_id'] = key_name
         return result
 
@@ -90,20 +91,19 @@ class GaeDatastoreWrapper(object):
         ndb.delete_multi(keys_to_delete)
 
     @db.strong_consistency_option
+    @db.flattener
     def put(self, table, document):
         if document is None or table is None:
             return
         key_name = document.pop('_id', None)
         collection = self.create_class(table, key_name)
-        if table not in ['metadata', 'tokenmaps']:
-            document = db.flatten(document, token_map = self.get_token_map(table, 'encode'))
         for key in document:
             setattr(collection, key, document[key])
         return collection.put().id()
 
     def find(self, table, properties, limit = None, keys_only = False):
         if '_id' in properties:
-            return [self.get(table, properties, key_only = keys_only)]
+            return [self.get(table, properties, keys_only = keys_only)]
         query = self.build_query(table, properties)
         results = []
         cursor = query.iter(limit=limit, keys_only = keys_only)

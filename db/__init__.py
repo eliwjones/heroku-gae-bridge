@@ -89,7 +89,7 @@ def get_tokenmaps(data_class):
 def init_replication(data_class, destination_hostname, replication_id = None):
     if not replication_id:
         replication_id = "%s.%s" % (time.strftime("%Y%m%d%H%M%S", time.localtime()), data_class.ns)
-    
+
     """ If can find replication_id in replication collection??? check for stop point and continue? raise exception?? """
     collections = data_class.get_collection_names()
     for collection in collections:
@@ -111,7 +111,7 @@ def build_replication_metadata(config, collection, destination_hostname, replica
 
 def replicate_collection(collection, metadata, replication_id, destination_hostname, config):
     data_class = get_data_class_from_config(config)
-    
+
     """ Chunk into batches of 100 or 1000 and track progress? """
     document_batch = []
     batch_size = 1000
@@ -193,7 +193,7 @@ def strong_consistency_option(F):
 
 def flattener(F):
     def decorated_method(self, table, properties, **kwargs):
-        if properties and table not in ['metadata', 'tokenmaps']:
+        if properties and table not in ['metadata', 'tokenmaps'] and '_flattened' not in kwargs:
             properties =  flatten(properties, token_map = self.get_token_map(table, 'encode'))
         return F(self, table, properties, **kwargs)
     return decorated_method
@@ -201,7 +201,7 @@ def flattener(F):
 def unflattener(F):
     def decorated_method(self, table, properties, **kwargs):
         document = F(self, table, properties, **kwargs)
-        if document and table not in ['metadata', 'tokenmaps']:
+        if document and table not in ['metadata', 'tokenmaps'] and 'keys_only' not in kwargs.keys():
             document = unflatten(document, token_map = self.get_token_map(table, 'decode'))
         return document
     return decorated_method

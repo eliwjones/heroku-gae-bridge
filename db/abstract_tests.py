@@ -17,12 +17,27 @@ class AbstractTest:
         assert 'keyname0' == result
         assert self.data_class.get('test_put_get', {'_id' : 'keyname0'}) == {'_id' : 'keyname0', 'prop' : 'value'}
 
+    def test_nested_put_get(self):
+        result = self.data_class.put('test_nested_put_get', {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}})
+        assert 'keyname0' == result
+        assert self.data_class.get('test_nested_put_get', {'_id' : 'keyname0'}) == {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}}
+
+    def test_nested_get_by_properties(self):
+        self.data_class.put('test_nested_get', {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}})
+        assert self.data_class.get('test_nested_get', {'nested' : {'value' : 'i am nested'}}) == {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}}
+
     def test_find(self):
         for document in [{'_id' : 'keyname0', 'value' : 'one value'}, {'_id' : 'keyname1', 'value' : 'another value'}]:
             self.data_class.put('test_find', document)
         result = list(self.data_class.find('test_find', {}))
         assert result == [{'_id' : 'keyname0', 'value' : 'one value'}, {'_id' : 'keyname1', 'value' : 'another value'}]
 
+    def test_nested_find(self):
+        for document in [{'_id' : 'keyname0', 'value' : 'one value', 'nested' : {'value' : 'i am nested'}},
+                         {'_id' : 'keyname1', 'value' : 'another value', 'nested' : {'value' : 'i am nested'}}]:
+            self.data_class.put('test_nested_find', document)
+        assert list(self.data_class.find('test_nested_find', {'nested' : {'value' : 'i am nested'}})) == [{'_id' : 'keyname0', 'value' : 'one value', 'nested' : {'value' : 'i am nested'}},
+                                                                                                          {'_id' : 'keyname1', 'value' : 'another value', 'nested' : {'value' : 'i am nested'}}]
     def test_remove(self):
         result = self.data_class.put('test_remove', {'_id' : 'keyname0'})
         assert result == 'keyname0'

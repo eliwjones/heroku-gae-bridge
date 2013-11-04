@@ -9,6 +9,7 @@ my_testbed.activate()
 my_testbed.init_datastore_v3_stub()
 my_testbed.init_memcache_stub()
 
+from db.gaedatastore_wrapper import GaeDatastoreWrapper
+
 class TestGaeDatastore(AbstractTest):
-    from db.gaedatastore_wrapper import GaeDatastoreWrapper
     data_wrapper = GaeDatastoreWrapper
