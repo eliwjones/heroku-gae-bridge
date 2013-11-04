@@ -103,8 +103,9 @@ class MongoDbWrapper(object):
         cursor = self.get_collection(table).find(properties)
         return self.PymongoCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
 
-    @db.flattener
     def update(self, table, key, properties, upsert = False, replace = False):
+        if table not in ['metadata', 'tokenmaps']:
+            properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         if replace:
             update = properties
         else:
