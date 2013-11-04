@@ -123,6 +123,16 @@ class GaeDatastoreWrapper(object):
             document[key] = properties[key]
         return self.put(table, document)
 
+    def startswith(self, table, starts_with):
+        # Begin hacky hack POC.
+        from google.appengine.api import namespace_manager
+        namespace_manager.set_namespace(self._ns)
+        start_key = ndb.Key(table, starts_with, namespace = self._ns)
+        stop_key = ndb.Key(table, starts_with + 'z', namespace = self._ns)
+        query = ndb.gql("SELECT * FROM " + table + " WHERE __key__ >= :1 and __key__ <= :2", start_key, stop_key)
+        cursor = query.iter(limit = None)
+        return self.DatastoreCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
+
     class DuplicateKeyError(Exception):
         """ To pass dup exception through to wrapper.
         """
