@@ -75,24 +75,21 @@ class MongoDbWrapper(object):
         collection_name = "%s.%s" % (ns, table)
         return self._db[collection_name]
 
-    def get(self, table, properties = None):
-        if properties:
-            properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
+    @db.unflattener
+    @db.flattener
+    def get(self, table, properties):
         document = self.get_collection(table).find_one(properties)
-        if document:
-            document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
         return document
 
     def remove(self, table, properties):
         return self.get_collection(table).remove(properties)
 
     @db.strong_consistency_option
+    @db.flattener
     def put(self, table, document, replace = False):
         if document is None or table is None:
             return
         try:
-            if table not in ['metadata', 'tokenmaps']:
-                document = db.flatten(document, token_map = self.get_token_map(table, 'encode'))
             return self.get_collection(table).insert(document)
         except MongoDuplicateKeyError:
             if not replace:
@@ -101,8 +98,8 @@ class MongoDbWrapper(object):
                 self.remove(table,{'_id':document['_id']})
                 return self.get_collection(table).insert(document)
 
+    @db.flattener
     def find(self, table, properties):
-        properties = db.flatten(properties, token_map = self.get_token_map(table, 'encode'))
         cursor = self.get_collection(table).find(properties)
         return self.PymongoCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
 
