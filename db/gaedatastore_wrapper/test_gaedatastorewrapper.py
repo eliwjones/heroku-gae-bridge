@@ -1,9 +1,7 @@
 from db.abstract_tests import AbstractTest
 
-import dev_appserver
-dev_appserver.fix_sys_path()
-
-from google.appengine.ext import testbed
+import db
+testbed = db.gae_import('google.appengine.ext', 'testbed')
 my_testbed = testbed.Testbed()
 my_testbed.activate()
 my_testbed.init_datastore_v3_stub()

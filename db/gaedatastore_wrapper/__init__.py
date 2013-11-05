@@ -1,10 +1,5 @@
 import db
-try:
-    from google.appengine.ext import ndb
-except ImportError:
-    import dev_appserver
-    dev_appserver.fix_sys_path()
-    from google.appengine.ext import ndb
+ndb = db.gae_import('google.appengine.ext', 'ndb')
 
 class GaeDatastoreWrapper(object):
 

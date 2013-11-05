@@ -1,6 +1,22 @@
-import types, time, os
+import types, time, os, sys
+
+""" Not sure where to stick this function.  Don't really want separate gae_helper module. """
+def gae_import(module, submodule, retry = True):
+    try:
+        return getattr(__import__(module, fromlist = [submodule]), submodule)
+    except ImportError:
+        if not retry:
+            raise
+        sdk_path = "%s/google_appengine" % (os.environ['HOME'])
+        sys.path.insert(0, sdk_path)
+        import dev_appserver
+        dev_appserver.fix_sys_path()
+        if 'google' in sys.modules:
+            del sys.modules['google']
+        return gae_import(module, submodule, retry = False)
+
 if 'APPENGINE' in os.environ.keys():
-    from google.appengine.ext import deferred
+    deferred = gae_import('google.appengine.ext', 'deferred')
 else:
     from queue import filesystemqueue as deferred
 
