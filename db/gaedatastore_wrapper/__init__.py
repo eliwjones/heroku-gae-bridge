@@ -99,7 +99,7 @@ class GaeDatastoreWrapper(object):
         results = []
         cursor = query.iter(limit=limit, keys_only = keys_only)
         if keys_only:
-            results = list(cursor)
+            results = cursor
         else:
             results = self.DatastoreCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
         return results
