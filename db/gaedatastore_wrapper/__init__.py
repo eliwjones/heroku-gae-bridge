@@ -63,7 +63,7 @@ class GaeDatastoreWrapper(object):
         if key_name:
             return ndb.Key(collection.__class__.__name__, key_name, namespace = self.ns)
         for prop in properties:
-            query.filter(ndb.GenericProperty(prop) == properties[prop])
+            query = query.filter(ndb.GenericProperty(prop) == properties[prop])
         return query
 
     @db.unflattener
