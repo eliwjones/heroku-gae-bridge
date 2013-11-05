@@ -1,3 +1,4 @@
+from operator import itemgetter
 
 class AbstractTest:
     @classmethod
@@ -60,7 +61,6 @@ class AbstractTest:
         assert {'_id' : 'keyname0', 'prop1' : 'new value one', 'prop2' : 'value two', 'a new value' : 'with new information'} == self.data_class.get('test_update', {'_id' : 'keyname0'})
 
     def test_startswith(self):
-        from operator import itemgetter
         starts_with = 'startswith'
         for document in [{'_id' : starts_with + '_keyname0', 'value' : 'one value'}, {'_id' : starts_with + '_keyname1', 'value' : 'another value'},
                          {'_id' : 'startsnotwith_keyname0', 'value' : 'third value'}, {'_id' : starts_with + 'zazzle', 'value' : 'MORE values'}]:
@@ -80,3 +80,10 @@ class AbstractTest:
         assert result == 'keyname0'
         self.data_class.remove('test_remove', {'_id' : 'keyname0'})
         assert None == self.data_class.get('test_remove', {'_id' : 'keyname0'})
+        for document in [{'_id' : 'keyname1', 'value' : 'one value', 'find' : 'me'}, {'_id' : 'keyname3', 'value' : 'another value', 'find' : 'me'},
+                         {'_id' : 'keyname0', 'value' : 'one value', 'find' : 'not me'}, {'_id' : 'keyname2', 'value' : 'another value', 'dontfind' : 'me'}]:
+            self.data_class.put('test_remove', document, consistency = "STRONG")
+        self.data_class.remove('test_remove', {'find':'me'})
+        assert [] == list(self.data_class.find('test_remove', {'find':'me'}))
+        assert [{'_id' : 'keyname0', 'value' : 'one value', 'find' : 'not me'}, {'_id' : 'keyname2', 'value' : 'another value', 'dontfind' : 'me'}] == sorted(self.data_class.find('test_remove', {}), key = itemgetter('_id'))
+
