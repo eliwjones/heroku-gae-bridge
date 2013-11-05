@@ -50,17 +50,14 @@ class GaeDatastoreWrapper(object):
     def ns(self):
         return self._ns
 
-    def create_class(self, name, key_name = None):
-        db_class = type(str(name), (ndb.Expando,), {})
-        if key_name:
-            return db_class(id = key_name, namespace = self.ns)
-        else:
-            return db_class(namespace = self.ns)
+    def create_class(self, name):
+        return type(str(name), (ndb.Expando,), {})
 
     @db.flattener
     def build_query(self, table, properties):
         key_name = properties.pop('_id', None)
-        collection = self.create_class(table)
+        model_class = self.create_class(table)
+        collection = model_class(namespace = self.ns)
         query = ndb.Query(kind = collection.__class__.__name__, namespace = self.ns)
         results = None
         if key_name:
@@ -91,7 +88,7 @@ class GaeDatastoreWrapper(object):
         if document is None or table is None:
             return
         key_name = document.pop('_id', None)
-        collection = self.create_class(table, key_name)
+        collection = self.create_class(table)(id = key_name, namespace = self._ns)
         for key in document:
             setattr(collection, key, document[key])
         return collection.put().id()
@@ -119,12 +116,19 @@ class GaeDatastoreWrapper(object):
         return self.put(table, document)
 
     def startswith(self, table, starts_with):
-        # Begin hacky hack POC.
-        from google.appengine.api import namespace_manager
-        namespace_manager.set_namespace(self._ns)
+        final_char_ord = ord(starts_with[-1])
+        if final_char_ord < 127:
+            stops_with = starts_with[:-1] + chr(final_char_ord + 1)
+        else:
+            stops_with = starts_with + (500-len(starts_with))*chr(127)
+
         start_key = ndb.Key(table, starts_with, namespace = self._ns)
-        stop_key = ndb.Key(table, starts_with + 'z', namespace = self._ns)
-        query = ndb.gql("SELECT * FROM " + table + " WHERE __key__ >= :1 and __key__ <= :2", start_key, stop_key)
+        stop_key = ndb.Key(table, stops_with, namespace = self._ns)
+
+        model_class = self.create_class(table)
+        query = model_class.query(namespace = self._ns)
+        query = query.filter(model_class.key >= start_key)
+        query = query.filter(model_class.key < stop_key)
         cursor = query.iter(limit = None)
         return self.DatastoreCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
 
