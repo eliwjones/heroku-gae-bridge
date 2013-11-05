@@ -14,13 +14,17 @@ class AbstractTest:
         assert None == self.data_class.get('test_put_get', {'_id' : 'nonexistentid'})
         assert None == self.data_class.put('test_put_get', None)
         result = self.data_class.put('test_put_get', {'_id' : 'keyname0', 'prop' : 'value'})
+        self.data_class.put('test_put_get', {'_id' : 'keyname1', 'prop' : 'value'})
         assert 'keyname0' == result
         assert self.data_class.get('test_put_get', {'_id' : 'keyname0'}) == {'_id' : 'keyname0', 'prop' : 'value'}
+        assert self.data_class.get('test_put_get', {'_id' : 'keyname1'}) == {'_id' : 'keyname1', 'prop' : 'value'}
 
     def test_nested_put_get(self):
         result = self.data_class.put('test_nested_put_get', {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}})
+        self.data_class.put('test_nested_put_get', {'_id' : 'keyname1', 'nested' : {'value' : 'differently nested'}})
         assert 'keyname0' == result
         assert self.data_class.get('test_nested_put_get', {'_id' : 'keyname0'}) == {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}}
+        assert self.data_class.get('test_nested_put_get', {'_id' : 'keyname1'}) == {'_id' : 'keyname1', 'nested' : {'value' : 'differently nested'}}
 
     def test_nested_get_by_properties(self):
         self.data_class.put('test_nested_get', {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}})
@@ -34,10 +38,20 @@ class AbstractTest:
 
     def test_nested_find(self):
         for document in [{'_id' : 'keyname0', 'value' : 'one value', 'nested' : {'value' : 'i am nested'}},
-                         {'_id' : 'keyname1', 'value' : 'another value', 'nested' : {'value' : 'i am nested'}}]:
+                         {'_id' : 'keyname1', 'value' : 'another value', 'nested' : {'value' : 'i am nested'}},
+                         {'_id' : 'keyname3', 'value' : 'another value', 'no_nest': True },
+                         {'_id' : 'keyname4', 'value' : 'another value', 'nested' : {'value' : 'differently nested.'}}]:
             self.data_class.put('test_nested_find', document)
         assert list(self.data_class.find('test_nested_find', {'nested' : {'value' : 'i am nested'}})) == [{'_id' : 'keyname0', 'value' : 'one value', 'nested' : {'value' : 'i am nested'}},
                                                                                                           {'_id' : 'keyname1', 'value' : 'another value', 'nested' : {'value' : 'i am nested'}}]
+
+    def test_find_multiple_properties(self):
+        for document in [{'_id' : 'keyname0', 'value' : 'one value', 'prop' : 'one prop'}, {'_id' : 'keyname1', 'value' : 'another value', 'prop' : 'another prop'}]:
+            self.data_class.put('test_find_multiple_properties', document)
+        assert [{'_id' : 'keyname0', 'value' : 'one value', 'prop' : 'one prop'}]  == list(self.data_class.find('test_find_multiple_properties', {'value' : 'one value', 'prop' : 'one prop'}))
+        assert [{'_id' : 'keyname1', 'value' : 'another value', 'prop' : 'another prop'}]  == list(self.data_class.find('test_find_multiple_properties', {'value' : 'another value', 'prop' : 'another prop'}))
+        assert [] == list(self.data_class.find('test_find_multiple_properties', {'value' : 'one value', 'prop' : 'another prop'}))
+
     def test_update(self):
         self.data_class.put('test_update', {'_id' : 'keyname0', 'prop1' : 'value one', 'prop2' : 'value two'})
         self.data_class.update('test_update', 'keyname0', {'a new value' : 'with new information'})
