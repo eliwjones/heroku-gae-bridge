@@ -50,18 +50,17 @@ class GaeDatastoreWrapper(object):
     def ns(self):
         return self._ns
 
-    def create_class(self, name):
+    @staticmethod
+    def create_class(name):
         return type(str(name), (ndb.Expando,), {})
 
     @db.flattener
     def build_query(self, table, properties):
-        key_name = properties.pop('_id', None)
         model_class = self.create_class(table)
-        collection = model_class(namespace = self.ns)
-        query = ndb.Query(kind = collection.__class__.__name__, namespace = self.ns)
-        results = None
+        key_name = properties.pop('_id', None)
         if key_name:
-            return ndb.Key(collection.__class__.__name__, key_name, namespace = self.ns)
+            return ndb.Key(model_class, key_name, namespace = self._ns)
+        query = model_class.query(namespace = self._ns)
         for prop in properties:
             query = query.filter(ndb.GenericProperty(prop) == properties[prop])
         return query
