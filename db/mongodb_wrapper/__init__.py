@@ -42,6 +42,9 @@ class MongoDbWrapper(object):
         if db_name:
             self._conn.drop_database(db_name)
 
+    def drop_namespace(self, namespace = None):
+        db.drop_namespace(self, namespace)
+
     def refresh_tokenmaps(self):
         self._tokenmaps = db.get_tokenmaps(self)
 

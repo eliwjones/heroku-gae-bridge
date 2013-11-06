@@ -19,8 +19,8 @@ class GaeDatastoreWrapper(object):
         app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', db.get_tokenmaps(self))
         self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
 
-    def drop_db(self, db_name):
-        return "Remove all entities in namespace?"
+    def drop_namespace(self, namespace = None):
+        db.drop_namespace(self, namespace)
 
     def refresh_tokenmaps(self):
         self._tokenmaps = db.get_tokenmaps(self)

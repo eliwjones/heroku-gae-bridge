@@ -5,11 +5,17 @@ class AbstractTest:
     def setup_class(self):
         self.config = {'DB_CONNECTION_STRING' : None, 'DB_NAME' : 'testdb', 'ENV' : 'testenv'}
         self.data_class = self.data_wrapper(config = self.config)
-        self.data_class.drop_db(self.config['DB_NAME'])
+        if hasattr(self.data_class, 'drop_db'):
+            self.data_class.drop_db(self.config['DB_NAME'])
+        else:
+            self.data_class.drop_namespace()
 
     @classmethod
     def teardown_class(self):
-        self.data_class.drop_db(self.config['DB_NAME'])
+        if hasattr(self.data_class, 'drop_db'):
+            self.data_class.drop_db(self.config['DB_NAME'])
+        else:
+            self.data_class.drop_namespace()
 
     def test_put_get(self):
         assert None == self.data_class.get('test_put_get', {'_id' : 'nonexistentid'})

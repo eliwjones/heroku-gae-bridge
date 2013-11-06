@@ -3,7 +3,10 @@ import types, time, os, sys
 """ Not sure where to stick this function.  Don't really want separate gae_helper module. """
 def gae_import(module, submodule, retry = True):
     try:
-        return getattr(__import__(module, fromlist = [submodule]), submodule)
+        if not submodule:
+            return __import__(module)
+        else:
+            return getattr(__import__(module, fromlist = [submodule]), submodule)
     except ImportError:
         if not retry:
             raise
@@ -25,6 +28,18 @@ def get_config(data_class):
     db_class_folder = db_class_name.lower().replace('wrapper','_wrapper')
     config = {'ENV' : data_class._ns, 'DB_NAME' : getattr(data_class, '_dbname', None), 'DB_CONNECTION_STRING' : getattr(data_class, '_connstr', None), 'DB_CLASS_NAME' : db_class_name, 'DB_CLASS_FOLDER' : db_class_folder}
     return config
+
+def drop_namespace(data_class, namespace = None):
+    """ Removes all documents from collections but will leave top level collection name there. """
+    original_namespace = data_class._ns
+    if namespace:
+        data_class._ns = namespace
+    try:
+        collections = data_class.get_collection_names()
+        for collection in collections:
+            data_class.remove(collection, {})
+    finally:
+        data_class._ns = original_namespace
 
 def flatten(props, parent_key = "", token_map = {}):
     new_props = []

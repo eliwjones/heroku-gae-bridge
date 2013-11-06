@@ -34,6 +34,9 @@ class TextDbWrapper(object):
         except OSError:
             pass
 
+    def drop_namespace(self, namespace = None):
+        db.drop_namespace(self, namespace)
+
     def refresh_tokenmaps(self):
         self._tokenmaps = db.get_tokenmaps(self)
 
