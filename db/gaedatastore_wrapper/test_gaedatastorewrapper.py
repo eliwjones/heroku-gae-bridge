@@ -12,10 +12,7 @@ if env == 'local':
 elif env == 'remote':
     remote_api_shell = db.gae_import('remote_api_shell', None)
     remote_api_shell.fix_sys_path()
-
-    from google.appengine.api import datastore_admin
     from google.appengine.ext.remote_api import remote_api_stub
-    from google.appengine.tools import appengine_rpc
 
     def auth_func():
         import getpass
