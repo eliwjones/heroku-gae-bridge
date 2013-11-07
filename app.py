@@ -1,6 +1,6 @@
 import os
 from flask import Flask, Response
-    
+
 app = Flask(__name__, static_folder='static')
 app.config.from_object('default_settings')
 if 'APPENGINE' in os.environ.keys():
@@ -14,6 +14,9 @@ data_class = _class(app)
 
 @app.route('/')
 def index():
+    """ Confirming gevent functionality. """
+    import time
+    time.sleep(5)
     return Response("I am a reference application for a pan-cloud application.", content_type = "text/plain")
 
 @app.route("/replicate/batch", methods=['GET', 'POST'])
