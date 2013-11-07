@@ -25,19 +25,21 @@ class TestDb:
     def test_db_flatten_unflatten(self):
         document = {'_id' : 'keyname1', 'nested' : {'item':1}}
         assert db.unflatten(db.flatten(document)) == document
-        
+
     def test_build_metadata(self):
         cursor = [{'_id' : 'keyname1', 'abcdefg' : 1, 'ab' : {'cd' : 1}},
                   {'_id' : 'keyname2', 'abcdefg' : 1, 'abcd': 1 }]
         metadata = db.build_metadata(cursor)
         assert metadata['tokenmap'] == {'abcdefg':'0', 'ab|cd' : '1', 'abcd':'2'}
-        
+
     def test_get_tokenmaps(self):
+        tokenmaps = db.get_tokenmaps(self.data_class)
+        assert tokenmaps == {'encode' : {}, 'decode' : {}}
         result = self.data_class.put('tokenmaps', {'_id' : 'test_collection', 'abcdefg' : '0', 'ab|cd' : '1', 'abcd' : '2'}, consistency='STRONG')
         tokenmaps = db.get_tokenmaps(self.data_class)
         assert tokenmaps == {'encode': {'test_collection': {'abcdefg': '0', 'ab|cd': '1', 'abcd': '2' }},
                              'decode': {'test_collection': {'0': 'abcdefg', '1': 'ab|cd', '2': 'abcd'}}}
-    
+
     def test_get_config(self):
         config = db.get_config(self.data_class)
         dict_intersection = { key : config[key] for key in set(config) & set(self.config) if self.config[key] == config[key] }

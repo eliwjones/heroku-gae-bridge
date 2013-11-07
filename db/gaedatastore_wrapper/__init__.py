@@ -16,7 +16,7 @@ class GaeDatastoreWrapper(object):
         app.extensions['data_wrapper'] = app.extensions.get('data_wrapper', {})
         app.extensions['data_wrapper']['ns'] = app.extensions['data_wrapper'].get('ns', app.config['ENV'])
         self._ns = app.extensions['data_wrapper']['ns']
-        app.extensions['data_wrapper']['tokenmaps'] = app.extensions['data_wrapper'].get('tokenmaps', db.get_tokenmaps(self))
+        app.extensions['data_wrapper']['tokenmaps'] = db.get_tokenmaps(self)
         self._tokenmaps = app.extensions['data_wrapper']['tokenmaps']
 
     def drop_namespace(self, namespace = None):
