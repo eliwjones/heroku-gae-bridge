@@ -55,7 +55,7 @@ class GaeDatastoreWrapper(object):
         return type(str(name), (ndb.Expando,), {})
 
     @db.flattener
-    def build_query(self, table, properties):
+    def build_query(self, table, properties, sort = []):
         model_class = self.create_class(table)
         key_name = properties.pop('_id', None)
         if key_name:
@@ -63,6 +63,15 @@ class GaeDatastoreWrapper(object):
         query = model_class.query(namespace = self._ns)
         for prop in properties:
             query = query.filter(ndb.GenericProperty(prop) == properties[prop])
+        for sort_info in sort:
+            if sort_info[0] == '_id':
+                sort_prop = model_class.key
+            else:
+                sort_prop = ndb.GenericProperty(sort_info[0])
+            if sort_info[1] == -1:
+                query = query.order(-sort_prop)
+            else:
+                query = query.order(sort_prop)
         return query
 
     @db.unflattener
@@ -92,10 +101,10 @@ class GaeDatastoreWrapper(object):
             setattr(collection, key, document[key])
         return collection.put().id()
 
-    def find(self, table, properties, limit = None, keys_only = False):
+    def find(self, table, properties, sort = [], limit = None, keys_only = False):
         if '_id' in properties:
             return [self.get(table, properties, keys_only = keys_only)]
-        query = self.build_query(table, properties)
+        query = self.build_query(table, properties, sort = sort)
         results = []
         cursor = query.iter(limit=limit, keys_only = keys_only)
         if keys_only:

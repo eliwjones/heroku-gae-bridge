@@ -1,11 +1,12 @@
 import db
-from db.textdb_wrapper import TextDbWrapper
+from db.textdb_wrapper import TextDbWrapper as data_wrapper
+#from db.mongodb_wrapper import MongoDbWrapper as data_wrapper
 
 class TestDb:
     @classmethod
     def setup_class(self):
         self.config = {'DB_CONNECTION_STRING' : None, 'DB_NAME' : 'testdb', 'ENV' : 'testenv'}
-        self.data_class = TextDbWrapper(config = self.config)
+        self.data_class = data_wrapper(config = self.config)
         self.data_class.drop_db(self.config['DB_NAME'])
 
     @classmethod

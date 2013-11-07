@@ -136,13 +136,9 @@ def build_replication_metadata(config, collection, destination_hostname, replica
     metadata['_id'] = "%s.%s" % (replication_id, collection)
     data_class.put('metadata', metadata, replace = True, consistency = 'STRONG')
 
-    """ Fire off async task to replicate collection. """
-    deferred.defer(replicate_collection, collection, metadata, replication_id, destination_hostname, data_class.config)
-    return "replicate_collection call was deferred!"
+    replicate_collection(collection, metadata, replication_id, destination_hostname, data_class)
 
-def replicate_collection(collection, metadata, replication_id, destination_hostname, config):
-    data_class = get_data_class_from_config(config)
-
+def replicate_collection(collection, metadata, replication_id, destination_hostname, data_class):
     """ Chunk into batches of 100 or 1000 and track progress? """
     document_batch = []
     batch_size = 1000

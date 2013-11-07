@@ -102,9 +102,16 @@ class MongoDbWrapper(object):
                 return self.get_collection(table).insert(document)
 
     @db.flattener
-    def find(self, table, properties):
-        cursor = self.get_collection(table).find(properties)
-        return self.PymongoCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
+    def find(self, table, properties, sort = [], limit = None, keys_only = False):
+        if keys_only:
+            cursor = self.get_collection(table, {'_id' : 1}).find(properties)
+        else:
+            cursor = self.get_collection(table).find(properties)
+        if sort:
+            cursor = cursor.sort(sort)
+        if limit:
+            cursor = cursor.limit(limit)
+        return self.PymongoCursorWrapper(cursor, table = table, token_map = self.get_token_map(table, 'decode'))
 
     def update(self, table, key, properties, upsert = False, replace = False):
         if table not in ['metadata', 'tokenmaps']:
@@ -127,11 +134,14 @@ class MongoDbWrapper(object):
     class PymongoCursorWrapper(Cursor):
         """ Mostly for proof-of-concept. Needed in GaeDatastoreWrapper.
         """
-        def __init__(self, wrapped, token_map):
+        def __init__(self, wrapped, table, token_map):
             self._wrapped = wrapped
+            self._table = table
             self._token_map = token_map
         def next(self):
             result = self._wrapped.next()
-            return db.unflatten(result, self._token_map)
+            if self._table not in ['metadata','tokenmaps']:
+                result = db.unflatten(result, self._token_map)
+            return result
         def __getattr__(self, attr):
             return getattr(self._wrapped, attr)

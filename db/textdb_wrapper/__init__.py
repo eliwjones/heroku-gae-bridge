@@ -76,7 +76,7 @@ class TextDbWrapper(object):
         try:
             if '_id' not in properties:
                 result = self.find(table, properties, limit = 1, _flattened = True)
-                document = result[0]
+                document = list(result)[0]
             else:
                 with open("%s/%s" % (collectionpath, properties["_id"])) as file:
                     result = file.read()
@@ -112,7 +112,7 @@ class TextDbWrapper(object):
                 pass
 
     @db.flattener
-    def find(self, table, properties, limit = None, keys_only = False, **kwargs):
+    def find(self, table, properties, sort = [], limit = None, keys_only = False, **kwargs):
         matches = 0
         collectionpath = self.get_collection(table)
         documents = []
@@ -131,12 +131,13 @@ class TextDbWrapper(object):
                 matches += 1
                 if keys_only:
                     document = document_path
-                elif table not in ['metadata', 'tokenmaps']:
-                    document = db.unflatten(document, token_map = self.get_token_map(table, 'decode'))
                 documents.append(document)
                 if matches == limit:
-                    return documents
-        return documents
+                    break
+        if keys_only:
+            return documents
+        else:
+            return self.TextDbCursorWrapper(iter(documents), table = table, token_map = self.get_token_map(table, 'decode'))
 
 
     def update(self, table, key, properties, upsert = False, replace = False):
@@ -162,6 +163,22 @@ class TextDbWrapper(object):
     class DuplicateKeyError(Exception):
         """ To pass dup exception through to wrapper.
         """
+
+    from collections import Iterator
+    class TextDbCursorWrapper(Iterator):
+        """ Mostly for proof-of-concept. Needed in GaeDatastoreWrapper.
+        """
+        def __init__(self, wrapped, table, token_map):
+            self._wrapped = wrapped
+            self._table = table
+            self._token_map = token_map
+        def next(self):
+            result = self._wrapped.next()
+            if self._table not in ['metadata','tokenmaps']:
+                result = db.unflatten(result, self._token_map)
+            return result
+        def __getattr__(self, attr):
+            return getattr(self._wrapped, attr)
 
 def merge_dicts(x,y):
     merged = dict(x,**y)

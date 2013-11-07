@@ -34,8 +34,8 @@ class AbstractTest:
         assert self.data_class.get('test_nested_put_get', {'_id' : 'keyname1'}) == {'_id' : 'keyname1', 'nested' : {'value' : 'differently nested'}}
 
     def test_nested_get_by_properties(self):
-        self.data_class.put('test_nested_get', {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}})
-        assert self.data_class.get('test_nested_get', {'nested' : {'value' : 'i am nested'}}) == {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}}
+        self.data_class.put('test_nested_get_by_properties', {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}})
+        assert self.data_class.get('test_nested_get_by_properties', {'nested' : {'value' : 'i am nested'}}) == {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}}
 
     def test_find(self):
         for document in [{'_id' : 'keyname0', 'value' : 'one value'}, {'_id' : 'keyname1', 'value' : 'another value'}]:
@@ -58,6 +58,14 @@ class AbstractTest:
         assert [{'_id' : 'keyname0', 'value' : 'one value', 'prop' : 'one prop'}]  == list(self.data_class.find('test_find_multiple_properties', {'value' : 'one value', 'prop' : 'one prop'}))
         assert [{'_id' : 'keyname1', 'value' : 'another value', 'prop' : 'another prop'}]  == list(self.data_class.find('test_find_multiple_properties', {'value' : 'another value', 'prop' : 'another prop'}))
         assert [] == list(self.data_class.find('test_find_multiple_properties', {'value' : 'one value', 'prop' : 'another prop'}))
+
+    def test_find_sort(self):
+        for document in [{'_id' : 'keyname0', 'value' : 'same value'}, {'_id' : 'keyname1', 'value' : 'another value'}, {'_id' : 'keyname2', 'value' : 'same value'}]:
+            self.data_class.put('test_find_sort', document)
+        assert list(self.data_class.find('test_find_sort', {}, sort = [('_id', 1)])) == [{'_id' : 'keyname0', 'value' : 'same value'}, {'_id' : 'keyname1', 'value' : 'another value'}, {'_id' : 'keyname2', 'value' : 'same value'}]
+        assert list(self.data_class.find('test_find_sort', {}, sort = [('_id', -1)])) == [{'_id' : 'keyname2', 'value' : 'same value'}, {'_id' : 'keyname1', 'value' : 'another value'}, {'_id' : 'keyname0', 'value' : 'same value'}]
+        assert list(self.data_class.find('test_find_sort', {}, sort = [('value', 1), ('_id', 1)])) == [{'_id' : 'keyname1', 'value' : 'another value'}, {'_id' : 'keyname0', 'value' : 'same value'}, {'_id' : 'keyname2', 'value' : 'same value'}]
+        assert list(self.data_class.find('test_find_sort', {}, sort = [('value', -1), ('_id', -1)])) == [{'_id' : 'keyname2', 'value' : 'same value'}, {'_id' : 'keyname0', 'value' : 'same value'}, {'_id' : 'keyname1', 'value' : 'another value'}]
 
     def test_update(self):
         self.data_class.put('test_update', {'_id' : 'keyname0', 'prop1' : 'value one', 'prop2' : 'value two'})
