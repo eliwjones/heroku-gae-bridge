@@ -66,8 +66,5 @@ if 'APPENGINE' not in os.environ.keys():
         return Response("LOG RESULTS:\n%s" % (logresults), content_type="text/plain")
 
 
-if 'APPENGINE' in os.environ.keys():
-    from google.appengine.ext.webapp.util import run_wsgi_app
-    run_wsgi_app(app)
 if __name__ == '__main__':
     app.run()
