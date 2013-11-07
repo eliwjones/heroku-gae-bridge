@@ -137,6 +137,18 @@ class TextDbWrapper(object):
         if keys_only:
             return documents
         else:
+            if sort:
+                def key_function(item):
+                    str_key = ''
+                    for sort_info in sort:
+                        if sort_info[0] in item:
+                            sort_val = item[sort_info[0]]
+                            if sort_info[1] == -1:
+                                # Hacky to reflect characters to other side of spectrum.
+                                sort_val = "".join(chr(127 - (ord(letter) - 128)) for letter in sort_val)
+                            str_key = "%s_%s" % (str_key, sort_val)
+                    return str_key
+                documents = sorted(documents, key = key_function)
             return self.TextDbCursorWrapper(iter(documents), table = table, token_map = self.get_token_map(table, 'decode'))
 
 
