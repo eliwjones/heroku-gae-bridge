@@ -15,8 +15,10 @@ data_class = _class(app)
 @app.route('/')
 def index():
     """ Confirming gevent functionality. """
+    from flask import request
+    sleep = int(request.args.get('sleep','5'))
     import time
-    time.sleep(5)
+    time.sleep(sleep)
     return Response("I am a reference application for a pan-cloud application.", content_type = "text/plain")
 
 @app.route("/replicate/batch", methods=['GET', 'POST'])
