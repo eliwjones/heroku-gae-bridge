@@ -1,7 +1,7 @@
 from db.abstract_tests import AbstractTest
 
 import db, pytest
-env = pytest.config.getoption('--env')
+env = pytest.config.getoption('--env')  # @UndefinedVariable
 
 if env == 'local':
     testbed = db.gae_import('google.appengine.ext', 'testbed')
