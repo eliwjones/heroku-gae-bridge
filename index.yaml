@@ -1,0 +1,13 @@
+indexes:
+
+- kind: test_find_sort
+  properties:
+  - name: __key__
+    direction: desc
+
+- kind: test_find_sort
+  properties:
+  - name: value
+    direction: desc
+  - name: __key__
+    direction: desc
