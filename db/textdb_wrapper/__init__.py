@@ -118,7 +118,6 @@ class TextDbWrapper(object):
         documents = []
         document_paths = glob.glob(collectionpath + '/*')
         for document_path in document_paths:
-            match = True
             try:
                 with open(document_path, 'r') as document_json:
                     document = json.loads(document_json.read())
@@ -128,14 +127,13 @@ class TextDbWrapper(object):
                         if properties[prop_key] != document[prop_key]:
                             raise Exception("Not matched!")
             except:
-                match = False
-            if match:
-                matches += 1
-                if keys_only:
-                    document = document_path
-                documents.append(document)
-                if matches == limit:
-                    break
+                continue
+            matches += 1
+            if keys_only:
+                document = document_path
+            documents.append(document)
+            if matches == limit and not sort:
+                break
         if keys_only:
             return documents
         else:
@@ -151,6 +149,8 @@ class TextDbWrapper(object):
                             str_key = "%s_%s" % (str_key, sort_val)
                     return str_key
                 documents = sorted(documents, key = key_function)
+                if limit:
+                    documents = documents[:limit]
             return self.TextDbCursorWrapper(iter(documents), table = table, token_map = self.get_token_map(table, 'decode'))
 
 
