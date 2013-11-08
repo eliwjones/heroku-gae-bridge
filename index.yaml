@@ -1,5 +1,10 @@
 indexes:
 
+- kind: test_find_range
+  properties:
+  - name: v2
+  - name: value
+
 - kind: test_find_sort
   properties:
   - name: __key__

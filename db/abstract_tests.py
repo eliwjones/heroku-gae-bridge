@@ -60,13 +60,14 @@ class AbstractTest:
         assert [] == list(self.data_class.find('test_find_multiple_properties', {'value' : 'one value', 'prop' : 'another prop'}))
 
     def test_find_range(self):
-        for document in [{'_id' : 'keyname0', 'value' : 'a'},
-                         {'_id' : 'keyname1', 'value' : 'b'},
-                         {'_id' : 'keyname2', 'value' : 'c'},
-                         {'_id' : 'keyname3', 'value' : 'd'},
-                         {'_id' : 'keyname4', 'value' : 'e'}]:
+        for document in [{'_id' : 'keyname0', 'value' : 'a', 'v2' : 1},
+                         {'_id' : 'keyname1', 'value' : 'b', 'v2' : 1},
+                         {'_id' : 'keyname2', 'value' : 'c', 'v2' : 2},
+                         {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2},
+                         {'_id' : 'keyname4', 'value' : 'e', 'v2' : 1}]:
             self.data_class.put('test_find_range', document)
-        assert list(self.data_class.find('test_find_range', {}, _range = {'prop':'value', 'start':'c', 'stop':'e'}))==[{'_id' : 'keyname2', 'value' : 'c'}, {'_id' : 'keyname3', 'value' : 'd'}]
+        assert list(self.data_class.find('test_find_range', {}, _range = {'prop':'value', 'start':'c', 'stop':'e'}))==[{'_id' : 'keyname2', 'value' : 'c', 'v2' : 2}, {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2}]
+        assert list(self.data_class.find('test_find_range', {'v2' : 1}, _range = {'prop':'value', 'start':'b', 'stop':'e'})) == [{'_id' : 'keyname1', 'value' : 'b', 'v2' : 1}]
 
     def test_find_sort(self):
         for document in [{'_id' : 'keyname0', 'value' : 'same value'}, {'_id' : 'keyname1', 'value' : 'another value'}, {'_id' : 'keyname2', 'value' : 'same value'}]:
@@ -77,15 +78,18 @@ class AbstractTest:
         assert list(self.data_class.find('test_find_sort', {}, sort = [('value', -1), ('_id', -1)])) == [{'_id' : 'keyname2', 'value' : 'same value'}, {'_id' : 'keyname0', 'value' : 'same value'}, {'_id' : 'keyname1', 'value' : 'another value'}]
 
     def test_find_limit(self):
-        for document in [{'_id' : 'keyname0', 'value' : 'a'},
-                         {'_id' : 'keyname1', 'value' : 'b'},
-                         {'_id' : 'keyname2', 'value' : 'c'},
-                         {'_id' : 'keyname3', 'value' : 'd'},
-                         {'_id' : 'keyname4', 'value' : 'e'}]:
+        for document in [{'_id' : 'keyname0', 'value' : 'a', 'v2' : 1},
+                         {'_id' : 'keyname1', 'value' : 'b', 'v2' : 1},
+                         {'_id' : 'keyname2', 'value' : 'c', 'v2' : 2},
+                         {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2},
+                         {'_id' : 'keyname4', 'value' : 'e', 'v2' : 1}]:
             self.data_class.put('test_find_limit', document)
+
         assert len(list(self.data_class.find('test_find_limit', {}, limit = 2))) == 2
         assert len(list(self.data_class.find('test_find_limit', {}, limit = 99))) == 5
-        assert list(self.data_class.find('test_find_limit', {}, limit = 2, sort = [('value', -1)])) == [{'_id' : 'keyname4', 'value' : 'e'}, {'_id' : 'keyname3', 'value' : 'd'}]
+        assert len([document for document in self.data_class.find('test_find_limit', {'v2' : 1}, limit = 2) if document['v2'] == 1]) == 2
+        assert len([document for document in self.data_class.find('test_find_limit', {'v2' : 2}, limit = 99) if document['v2'] == 2]) == 2
+        assert list(self.data_class.find('test_find_limit', {}, limit = 2, sort = [('value', -1)])) == [{'_id' : 'keyname4', 'value' : 'e', 'v2' : 1}, {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2}]
 
     def test_update(self):
         self.data_class.put('test_update', {'_id' : 'keyname0', 'prop1' : 'value one', 'prop2' : 'value two'})
