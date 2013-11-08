@@ -33,6 +33,19 @@ class AbstractTest:
         assert self.data_class.get('test_nested_put_get', {'_id' : 'keyname0'}) == {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}}
         assert self.data_class.get('test_nested_put_get', {'_id' : 'keyname1'}) == {'_id' : 'keyname1', 'nested' : {'value' : 'differently nested'}}
 
+    def test_put_multi(self):
+        results = self.data_class.put_multi('test_put_multi', [{'_id' : 'keyname0', 'value' : 'a', 'v2' : 1},
+                         {'_id' : 'keyname1', 'value' : 'b', 'v2' : 1},
+                         {'_id' : 'keyname2', 'value' : 'c', 'v2' : 2},
+                         {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2},
+                         {'_id' : 'keyname4', 'value' : 'e', 'v2' : 1}])
+        assert results == ['keyname0','keyname1','keyname2','keyname3','keyname4']
+        assert list(self.data_class.find('test_put_multi', {}, sort = [('_id',1)])) == [{'_id' : 'keyname0', 'value' : 'a', 'v2' : 1},
+                                                                                        {'_id' : 'keyname1', 'value' : 'b', 'v2' : 1},
+                                                                                        {'_id' : 'keyname2', 'value' : 'c', 'v2' : 2},
+                                                                                        {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2},
+                                                                                        {'_id' : 'keyname4', 'value' : 'e', 'v2' : 1}]
+
     def test_nested_get_by_properties(self):
         self.data_class.put('test_nested_get_by_properties', {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}})
         assert self.data_class.get('test_nested_get_by_properties', {'nested' : {'value' : 'i am nested'}}) == {'_id' : 'keyname0', 'nested' : {'value' : 'i am nested'}}

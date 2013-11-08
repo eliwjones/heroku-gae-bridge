@@ -98,16 +98,24 @@ class GaeDatastoreWrapper(object):
         keys_to_delete = self.find(table, properties, keys_only = True)
         ndb.delete_multi(keys_to_delete)
 
-    @db.strong_consistency_option
     @db.flattener
+    def prep_document(self, table, document):
+        key_name = document.pop('_id', None)
+        prepped_doc = self.create_class(table)(id = key_name, namespace = self._ns)
+        for key in document:
+            setattr(prepped_doc, key, document[key])
+        return prepped_doc
+
+    @db.strong_consistency_option
     def put(self, table, document):
         if document is None or table is None:
             return
-        key_name = document.pop('_id', None)
-        collection = self.create_class(table)(id = key_name, namespace = self._ns)
-        for key in document:
-            setattr(collection, key, document[key])
-        return collection.put().id()
+        document = self.prep_document(table, document)
+        return document.put().id()
+
+    def put_multi(self, table, documents):
+        documents = [self.prep_document(table, document) for document in documents]
+        return [key.id() for key in ndb.put_multi(documents)]
 
     def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False):
         if '_id' in properties:

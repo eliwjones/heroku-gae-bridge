@@ -103,6 +103,12 @@ class TextDbWrapper(object):
             raise
         return document['_id']
 
+    def put_multi(self, table, documents):
+        results = []
+        for document in documents:
+            results.append(self.put(table, document))
+        return results
+
     def remove(self, table, properties):
         keys_to_delete = self.find(table, properties, keys_only = True)
         for filename in keys_to_delete:

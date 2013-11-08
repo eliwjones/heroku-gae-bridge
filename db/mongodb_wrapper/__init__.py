@@ -87,11 +87,15 @@ class MongoDbWrapper(object):
     def remove(self, table, properties):
         return self.get_collection(table).remove(properties)
 
-    @db.strong_consistency_option
     @db.flattener
+    def prep_document(self, table, document):
+        return document
+
+    @db.strong_consistency_option
     def put(self, table, document, replace = False):
         if document is None or table is None:
             return
+        document = self.prep_document(table, document)
         try:
             return self.get_collection(table).insert(document)
         except MongoDuplicateKeyError:
@@ -100,6 +104,10 @@ class MongoDbWrapper(object):
             else:
                 self.remove(table,{'_id':document['_id']})
                 return self.get_collection(table).insert(document)
+
+    def put_multi(self, table, documents):
+        documents = [self.prep_document(table, document) for document in documents]
+        return self.get_collection(table).insert(documents)
 
     @db.flattener
     def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False):
