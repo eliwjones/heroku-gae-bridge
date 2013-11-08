@@ -112,7 +112,7 @@ class TextDbWrapper(object):
                 pass
 
     @db.flattener
-    def find(self, table, properties, sort = [], limit = None, keys_only = False, **kwargs):
+    def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False, **kwargs):
         matches = 0
         collectionpath = self.get_collection(table)
         documents = []
@@ -122,9 +122,11 @@ class TextDbWrapper(object):
             try:
                 with open(document_path, 'r') as document_json:
                     document = json.loads(document_json.read())
+                    if _range and not (_range['start'] <= document[_range['prop']] < _range['stop']):
+                        raise Exception("Not matched!")
                     for prop_key in properties:
                         if properties[prop_key] != document[prop_key]:
-                            match = False
+                            raise Exception("Not matched!")
             except:
                 match = False
             if match:

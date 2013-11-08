@@ -132,7 +132,7 @@ def init_replication(data_class, destination_hostname, replication_id = None):
 def build_replication_metadata(config, collection, destination_hostname, replication_id):
     data_class = get_data_class_from_config(config)
     """ Loop over all documents in collection and build meta. """
-    metadata = build_metadata(data_class.find(collection, {}))
+    metadata = build_metadata(data_class.find(collection, {}, sort = [('_id', 1)]))
     metadata['_id'] = "%s.%s" % (replication_id, collection)
     data_class.put('metadata', metadata, replace = True, consistency = 'STRONG')
 

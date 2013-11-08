@@ -102,7 +102,9 @@ class MongoDbWrapper(object):
                 return self.get_collection(table).insert(document)
 
     @db.flattener
-    def find(self, table, properties, sort = [], limit = None, keys_only = False):
+    def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False):
+        if _range:
+            properties[_range['prop']] = {"$gte" : _range['start'], "$lt" : _range['stop']}
         if keys_only:
             cursor = self.get_collection(table, {'_id' : 1}).find(properties)
         else:

@@ -59,6 +59,15 @@ class AbstractTest:
         assert [{'_id' : 'keyname1', 'value' : 'another value', 'prop' : 'another prop'}]  == list(self.data_class.find('test_find_multiple_properties', {'value' : 'another value', 'prop' : 'another prop'}))
         assert [] == list(self.data_class.find('test_find_multiple_properties', {'value' : 'one value', 'prop' : 'another prop'}))
 
+    def test_find_range(self):
+        for document in [{'_id' : 'keyname0', 'value' : 'a'},
+                         {'_id' : 'keyname1', 'value' : 'b'},
+                         {'_id' : 'keyname2', 'value' : 'c'},
+                         {'_id' : 'keyname3', 'value' : 'd'},
+                         {'_id' : 'keyname4', 'value' : 'e'}]:
+            self.data_class.put('test_find_range', document)
+        assert list(self.data_class.find('test_find_range', {}, _range = {'prop':'value', 'start':'c', 'stop':'e'}))==[{'_id' : 'keyname2', 'value' : 'c'}, {'_id' : 'keyname3', 'value' : 'd'}]
+
     def test_find_sort(self):
         for document in [{'_id' : 'keyname0', 'value' : 'same value'}, {'_id' : 'keyname1', 'value' : 'another value'}, {'_id' : 'keyname2', 'value' : 'same value'}]:
             self.data_class.put('test_find_sort', document)

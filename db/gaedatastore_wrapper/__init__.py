@@ -55,7 +55,7 @@ class GaeDatastoreWrapper(object):
         return type(str(name), (ndb.Expando,), {})
 
     @db.flattener
-    def build_query(self, table, properties, sort = []):
+    def build_query(self, table, properties, _range = None, sort = []):
         model_class = self.create_class(table)
         key_name = properties.pop('_id', None)
         if key_name:
@@ -63,6 +63,14 @@ class GaeDatastoreWrapper(object):
         query = model_class.query(namespace = self._ns)
         for prop in properties:
             query = query.filter(ndb.GenericProperty(prop) == properties[prop])
+        if _range:
+            if _range['prop'] == '_id':
+                range_prop = model_class.key
+                _range['start'] = ndb.Key(table, _range['start'], namespace = self._ns)
+                _range['stop'] = ndb.Key(table, _range['stop'], namespace = self._ns)
+            else:
+                range_prop = ndb.GenericProperty(_range['prop'])
+            query = query.filter(range_prop >= _range['start']).filter(range_prop < _range['stop'])
         for sort_info in sort:
             if sort_info[0] == '_id':
                 sort_prop = model_class.key
@@ -101,10 +109,10 @@ class GaeDatastoreWrapper(object):
             setattr(collection, key, document[key])
         return collection.put().id()
 
-    def find(self, table, properties, sort = [], limit = None, keys_only = False):
+    def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False):
         if '_id' in properties:
             return [self.get(table, properties, keys_only = keys_only)]
-        query = self.build_query(table, properties, sort = sort)
+        query = self.build_query(table, properties, _range = _range, sort = sort)
         results = []
         cursor = query.iter(limit=limit, keys_only = keys_only)
         if keys_only:
@@ -129,16 +137,7 @@ class GaeDatastoreWrapper(object):
             stops_with = starts_with[:-1] + chr(final_char_ord + 1)
         else:
             stops_with = starts_with + (500-len(starts_with))*chr(127)
-
-        start_key = ndb.Key(table, starts_with, namespace = self._ns)
-        stop_key = ndb.Key(table, stops_with, namespace = self._ns)
-
-        model_class = self.create_class(table)
-        query = model_class.query(namespace = self._ns)
-        query = query.filter(model_class.key >= start_key)
-        query = query.filter(model_class.key < stop_key)
-        cursor = query.iter(limit = None)
-        return self.DatastoreCursorWrapper(cursor, token_map = self.get_token_map(table, 'decode'))
+        return self.find(table, {}, _range = {'prop' : '_id', 'start' : starts_with, 'stop' : stops_with})
 
     class DuplicateKeyError(Exception):
         """ To pass dup exception through to wrapper.
