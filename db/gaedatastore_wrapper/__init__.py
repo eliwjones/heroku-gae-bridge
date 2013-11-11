@@ -36,8 +36,8 @@ class GaeDatastoreWrapper(object):
         query = ndb.Query(kind = '__kind__', namespace = self.ns)
         return [collection.kind_name for collection in query.fetch()]
 
-    def init_replication(self, destination_hostname):
-        return db.init_replication(self, destination_hostname)
+    def init_replication(self, destination_hostname, replication_id = None):
+        return db.init_replication(self, destination_hostname, replication_id = replication_id)
 
     def accept_replicated_batch(self, data):
         return db.accept_replicated_batch(self, data)
@@ -122,12 +122,12 @@ class GaeDatastoreWrapper(object):
         documents = [self.prep_document(table, document) for document in documents]
         return [key.id() for key in ndb.put_multi(documents)]
 
-    def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False):
+    def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False, batch_size = 20):
         if '_id' in properties:
             return [self.get(table, properties, keys_only = keys_only)]
         query = self.build_query(table, properties, _range = _range, sort = sort)
         results = []
-        cursor = query.iter(limit=limit, keys_only = keys_only)
+        cursor = query.iter(limit=limit, keys_only = keys_only, batch_size = batch_size)
         if keys_only:
             results = cursor
         else:

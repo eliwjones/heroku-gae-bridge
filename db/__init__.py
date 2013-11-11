@@ -1,6 +1,25 @@
 import types, time, os, sys
 
-""" Not sure where to stick this function.  Don't really want separate gae_helper module. """
+""" Not sure where to stick these GAE functions.  Don't really want separate gae_helper module. """
+
+def prep_test_env(env, app_name):
+    if env == 'local':
+        testbed = gae_import('google.appengine.ext', 'testbed')
+        my_testbed = testbed.Testbed()
+        my_testbed.activate()
+        my_testbed.init_datastore_v3_stub()
+        my_testbed.init_memcache_stub()
+    elif env == 'remote':
+        remote_api_shell = gae_import('remote_api_shell', None)
+        remote_api_shell.fix_sys_path()
+        from google.appengine.ext.remote_api import remote_api_stub
+
+        def auth_func():
+            import getpass
+            return (raw_input('Username:'), getpass.getpass('Password:'))
+
+        remote_api_stub.ConfigureRemoteApi(None, '/_ah/remote_api', auth_func, '%s.appspot.com' % (app_name))
+
 def gae_import(module, submodule, retry = True):
     try:
         if not submodule:
@@ -17,6 +36,8 @@ def gae_import(module, submodule, retry = True):
         if 'google' in sys.modules:
             del sys.modules['google']
         return gae_import(module, submodule, retry = False)
+
+""" """
 
 if 'APPENGINE' in os.environ.keys():
     deferred = gae_import('google.appengine.ext', 'deferred')
@@ -79,18 +100,17 @@ def unflatten(dictionary, token_map = {}):
         d[parts[-1]] = value
     return resultDict
 
-def build_metadata(cursor):
+def build_metadata(cursor, batch_size = 1000):
     prop_data = {}
     key_count = -1
-    partition_size = 1000
-    key_distribution = {}
+    key_distribution = []
     keyname = None
     for document in cursor:
         try:
             keyname = document['_id']
             key_count += 1
-            if key_count % partition_size == 0:
-                key_distribution[str(key_count)] = keyname
+            if key_count % batch_size == 0:
+                key_distribution.append(keyname)
             del document['_id']
         except:
             pass
@@ -99,13 +119,11 @@ def build_metadata(cursor):
             if prop not in prop_data:
                 prop_data[prop] = 0
             prop_data[prop] += 1
-    # Set final keyname in distribution.
-    key_distribution[str(key_count)] = keyname
     for prop in prop_data:
         prop_data[prop] *= len(prop)
     prop_frequency = sorted(prop_data, key = prop_data.__getitem__, reverse=True)
     tokenmap = { prop : str(idx) for idx, prop in enumerate(prop_frequency) }
-    return {'tokenmap' : tokenmap, 'key_distribution' : key_distribution, 'partition_size' : partition_size}
+    return {'tokenmap' : tokenmap, 'key_distribution' : key_distribution, 'batch_size' : batch_size}
 
 
 def get_tokenmaps(data_class):
@@ -126,40 +144,37 @@ def init_replication(data_class, destination_hostname, replication_id = None):
     for collection in collections:
         if collection in ['tokenmaps', 'metadata']:
             continue
-        deferred.defer(build_replication_metadata, data_class.config, collection, destination_hostname, replication_id)
+        deferred.defer(build_replication_metadata, data_class.config, collection, destination_hostname, replication_id, batch_size = 1000)
     return replication_id
 
-def build_replication_metadata(config, collection, destination_hostname, replication_id):
+def build_replication_metadata(config, collection, destination_hostname, replication_id, batch_size = 1000):
     data_class = get_data_class_from_config(config)
     """ Loop over all documents in collection and build meta. """
-    metadata = build_metadata(data_class.find(collection, {}, sort = [('_id', 1)]))
+    collection_cursor = data_class.find(collection, {}, sort = [('_id', 1)], batch_size = batch_size)
+    metadata = build_metadata(collection_cursor, batch_size = batch_size)
     metadata['_id'] = "%s.%s" % (replication_id, collection)
     data_class.put('metadata', metadata, replace = True, consistency = 'STRONG')
 
     replicate_collection(collection, metadata, replication_id, destination_hostname, data_class)
 
 def replicate_collection(collection, metadata, replication_id, destination_hostname, data_class):
-    """ Chunk into batches of 100 or 1000 and track progress? """
-    document_batch = []
-    batch_size = 1000
-    collection_cursor = data_class.find(collection, {})
-    for idx, document in enumerate(collection_cursor):
-        document_batch.append(document)
-        if idx%1000 and idx > 0:
-            replicate_batch(collection, metadata, replication_id, document_batch, destination_hostname)
-            document_batch = []
-    if document_batch:
-        replicate_batch(collection, metadata, replication_id, document_batch, destination_hostname)
+    for idx, key_name in enumerate(metadata['key_distribution']):
+        _range = {'prop':'_id'}
+        if idx != 0:
+            _range['start'] = key_name
+        try:
+            _range['stop'] = metadata['key_distribution'][idx+1]
+        except IndexError:
+            pass
+        deferred.defer(replicate_batch, data_class.config, collection, metadata, replication_id, _range, destination_hostname)
     return "Replicated!! %s %s %s" % (collection, destination_hostname, replication_id)
 
-def replicate_batch(collection, metadata, replication_id, document_batch, destination_hostname):
+def replicate_batch(config, collection, metadata, replication_id, _range, destination_hostname):
     import json, zlib, requests, base64
-    """
-      1. serialize and compress batch.
-      2. post to replicate endpoint on destination_hostname.
-      3. Track?? Or just look for missing batches later?
-      4. destination host should report back on received batches.
-    """
+
+    data_class = get_data_class_from_config(config)
+    document_batch = list(data_class.find(collection, {}, _range = _range, sort = [('_id', 1)], batch_size = metadata['batch_size']))
+
     data_batch = {'collection' : collection ,'metadata' : metadata, 'replication_id' : replication_id, 'document_batch' : document_batch}
     serialized_batch = json.dumps(data_batch)
     headers = {'Content-Type': 'application/octet-stream', 'Content-Transfer-Encoding' : 'base64'}

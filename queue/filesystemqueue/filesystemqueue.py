@@ -25,7 +25,6 @@ def work():
     try:
         queueitem_path = glob.glob("%s/*" % (_QUEUE_DIR)).pop()
     except:
-        print "No work to do!"
         return
     with open("%s" % (queueitem_path)) as queueitem:
         func, args, kwds = pickle.load(queueitem)

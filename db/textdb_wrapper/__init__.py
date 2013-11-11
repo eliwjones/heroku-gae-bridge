@@ -50,8 +50,8 @@ class TextDbWrapper(object):
         ns_collections = glob.glob("%s/%s.*" % (self._db, self.ns))
         return [collection.replace("%s/%s." % (self._db, self.ns), '', 1) for collection in ns_collections]
 
-    def init_replication(self, destination_hostname):
-        return db.init_replication(self, destination_hostname)
+    def init_replication(self, destination_hostname, replication_id = None):
+        return db.init_replication(self, destination_hostname, replication_id = replication_id)
 
     def accept_replicated_batch(self, data):
         return db.accept_replicated_batch(self, data)

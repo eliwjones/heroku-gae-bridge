@@ -54,8 +54,8 @@ class MongoDbWrapper(object):
         except:
             return {}
 
-    def init_replication(self, destination_hostname):
-        return db.init_replication(self, destination_hostname)
+    def init_replication(self, destination_hostname, replication_id = None):
+        return db.init_replication(self, destination_hostname, replication_id = replication_id)
 
     def accept_replicated_batch(self, data):
         return db.accept_replicated_batch(self, data)
@@ -110,9 +110,10 @@ class MongoDbWrapper(object):
         return self.get_collection(table).insert(documents)
 
     @db.flattener
-    def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False):
+    def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False, batch_size = None):
         if _range:
-            properties[_range['prop']] = {}
+            if 'start' in _range or 'stop' in _range:
+                properties[_range['prop']] = {}
             if 'start' in _range:
                 properties[_range['prop']]["$gte"] = _range['start']
             if 'stop' in _range:
@@ -125,6 +126,8 @@ class MongoDbWrapper(object):
             cursor = cursor.sort(sort)
         if limit:
             cursor = cursor.limit(limit)
+        if batch_size:
+            cursor = cursor.batch_size(batch_size)
         return self.PymongoCursorWrapper(cursor, table = table, token_map = self.get_token_map(table, 'decode'))
 
     def update(self, table, key, properties, upsert = False, replace = False):
