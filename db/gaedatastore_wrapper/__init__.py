@@ -66,11 +66,16 @@ class GaeDatastoreWrapper(object):
         if _range:
             if _range['prop'] == '_id':
                 range_prop = model_class.key
-                _range['start'] = ndb.Key(table, _range['start'], namespace = self._ns)
-                _range['stop'] = ndb.Key(table, _range['stop'], namespace = self._ns)
+                if 'start' in _range:
+                    _range['start'] = ndb.Key(table, _range['start'], namespace = self._ns)
+                if 'stop' in _range:
+                    _range['stop'] = ndb.Key(table, _range['stop'], namespace = self._ns)
             else:
                 range_prop = ndb.GenericProperty(_range['prop'])
-            query = query.filter(range_prop >= _range['start']).filter(range_prop < _range['stop'])
+            if 'start' in _range:
+                query = query.filter(range_prop >= _range['start'])
+            if 'stop' in _range:
+                query = query.filter(range_prop < _range['stop'])
         for sort_info in sort:
             if sort_info[0] == '_id':
                 sort_prop = model_class.key

@@ -112,7 +112,11 @@ class MongoDbWrapper(object):
     @db.flattener
     def find(self, table, properties, _range = None, sort = [], limit = None, keys_only = False):
         if _range:
-            properties[_range['prop']] = {"$gte" : _range['start'], "$lt" : _range['stop']}
+            properties[_range['prop']] = {}
+            if 'start' in _range:
+                properties[_range['prop']]["$gte"] = _range['start']
+            if 'stop' in _range:
+                properties[_range['prop']]["$lt"] = _range['stop']
         if keys_only:
             cursor = self.get_collection(table, {'_id' : 1}).find(properties)
         else:

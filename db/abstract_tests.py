@@ -80,7 +80,10 @@ class AbstractTest:
                          {'_id' : 'keyname4', 'value' : 'e', 'v2' : 1}]:
             self.data_class.put('test_find_range', document)
         assert list(self.data_class.find('test_find_range', {}, _range = {'prop':'value', 'start':'c', 'stop':'e'}))==[{'_id' : 'keyname2', 'value' : 'c', 'v2' : 2}, {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2}]
+        assert list(self.data_class.find('test_find_range', {}, _range = {'prop':'_id', 'start':'keyname2', 'stop':'keyname4'}))==[{'_id' : 'keyname2', 'value' : 'c', 'v2' : 2}, {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2}]
         assert list(self.data_class.find('test_find_range', {'v2' : 1}, _range = {'prop':'value', 'start':'b', 'stop':'e'})) == [{'_id' : 'keyname1', 'value' : 'b', 'v2' : 1}]
+        assert list(self.data_class.find('test_find_range', {}, _range = {'prop':'_id', 'stop':'keyname2'})) == [{'_id' : 'keyname0', 'value' : 'a', 'v2' : 1}, {'_id' : 'keyname1', 'value' : 'b', 'v2' : 1}]
+        assert list(self.data_class.find('test_find_range', {}, _range = {'prop':'_id', 'start': 'keyname2'})) == [{'_id' : 'keyname2', 'value' : 'c', 'v2' : 2}, {'_id' : 'keyname3', 'value' : 'd', 'v2' : 2}, {'_id' : 'keyname4', 'value' : 'e', 'v2' : 1}]
 
     def test_find_sort(self):
         for document in [{'_id' : 'keyname0', 'value' : 'same value'}, {'_id' : 'keyname1', 'value' : 'another value'}, {'_id' : 'keyname2', 'value' : 'same value'}]:
