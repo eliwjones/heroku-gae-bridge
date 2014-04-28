@@ -3,7 +3,7 @@ heroku-gae-bridge
 
 Deploy same codebase to Heroku or Google App Engine, replicate data between platforms, tokenize properties, etc.
 
-Quick Install
+Quick Install (Heroku-y Foreman version)
 =============
 Prerequisites:
 ```
@@ -32,4 +32,22 @@ namespace:
 sandbox
 results:
 [{u'string_property': u'yes this is a string', u'_id': u'keyname_1', u'number_property': 10101}, {u'string_property': u'more strings', u'_id': u'keyname_2', u'number_property': 99}]
+```
+
+Appengine Setup
+===============
+```
+$ ./gae_ify.sh
+$ ~/google_appengine/dev_appserver.py .
+```
+Verify:
+```
+$ curl localhost:8080/test/dataclass
+data_class.find()
+config:
+{'DB_NAME': None, 'DB_CLASS_FOLDER': 'gaedatastore_wrapper', 'DB_CONNECTION_STRING': None, 'ENV': 'sandbox', 'DB_CLASS_NAME': 'GaeDatastoreWrapper'}
+namespace:
+sandbox
+results:
+[{'_id': 'keyname_1', 'number_property': 10101L, 'string_property': 'yes this is a string'}, {'_id': 'keyname_2', 'number_property': 99L, 'string_property': 'more strings'}]
 ```
