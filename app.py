@@ -14,12 +14,7 @@ data_class = _class(app)
 
 @app.route('/')
 def index():
-    """ Confirming gevent functionality. """
-    from flask import request
-    sleep = int(request.args.get('sleep','5'))
-    import time
-    time.sleep(sleep)
-    return Response("I am a reference application for a pan-cloud application.", content_type = "text/plain")
+    return Response("I am a reference application for a pan-cloud application.\n", content_type = "text/plain")
 
 @app.route("/replicate/batch", methods=['GET', 'POST'])
 def replicate_batch():
@@ -37,7 +32,7 @@ def test_dataclass():
         data_class.put(collection, {'_id' : 'keyname_1', 'string_property' : 'yes this is a string', 'number_property' : 10101})
         data_class.put(collection, {'_id' : 'keyname_2', 'string_property' : 'more strings', 'number_property' : 99})
         results = list(data_class.find(collection, {}))
-    return Response("data_class.find()\nconfig:\n%s\nnamespace:\n%s\nresults:\n%s" % (data_class.config, data_class.ns, results), content_type="text/plain")
+    return Response("data_class.find()\nconfig:\n%s\nnamespace:\n%s\nresults:\n%s\n" % (data_class.config, data_class.ns, results), content_type="text/plain")
 
 if 'APPENGINE' not in os.environ.keys():
     @app.route("/pmqtest")
@@ -49,13 +44,13 @@ if 'APPENGINE' not in os.environ.keys():
         from queue import filesystemqueue
         from queue.consumers import read_textdb_func
         filesystemqueue.defer(read_textdb_func, collection, {'_id':keyname}, app.config)
-        return Response("Inserted keyname: %s! Check pmq log!!" % (keyname))
+        return Response("Inserted keyname: %s! Check pmq log!!\n" % (keyname))
     @app.route("/pmqwork")
     def insert_work():
         from queue import filesystemqueue
         from queue.consumers import my_func
         filesystemqueue.defer(my_func, "hello from heroku", _name = 'myfunctest')
-        return Response("Inserted stuff to pmq.", content_type = "text/plain")
+        return Response("Inserted stuff to pmq.\n", content_type = "text/plain")
     @app.route("/pmqlog")
     def show_log():
         try:
@@ -63,7 +58,7 @@ if 'APPENGINE' not in os.environ.keys():
                 logresults = pmqlog.read()
         except:
             logresults = "No pmqlog results"
-        return Response("LOG RESULTS:\n%s" % (logresults), content_type="text/plain")
+        return Response("LOG RESULTS:\n%s\n" % (logresults), content_type="text/plain")
 
 
 if __name__ == '__main__':
