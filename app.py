@@ -28,11 +28,12 @@ def replicate_batch():
 def test_dataclass():
     collection = 'my_test_collection'
     results = list(data_class.find(collection, {}))
+    consistency = {}
     if not results:
-        data_class.put(collection, {'_id' : 'keyname_1', 'string_property' : 'yes this is a string', 'number_property' : 10101})
-        data_class.put(collection, {'_id' : 'keyname_2', 'string_property' : 'more strings', 'number_property' : 99})
+        consistency['keyname_1'] = data_class.put(collection, {'_id' : 'keyname_1', 'string_property' : 'yes this is a string', 'number_property' : 10101}, replace = True, consistency = 'STRONG')
+        consistency['keyname_2'] = data_class.put(collection, {'_id' : 'keyname_2', 'string_property' : 'more strings', 'number_property' : 99}, replace = True, consistency = 'STRONG')
         results = list(data_class.find(collection, {}))
-    return Response("data_class.find()\nconfig:\n%s\nnamespace:\n%s\nresults:\n%s\n" % (data_class.config, data_class.ns, results), content_type="text/plain")
+    return Response("data_class.find()\nconfig:\n%s\nnamespace:\n%s\nresults:\n%s\nconsistency:\n%s\n" % (data_class.config, data_class.ns, results, consistency), content_type="text/plain")
 
 if 'APPENGINE' not in os.environ.keys():
     @app.route("/pmqtest")

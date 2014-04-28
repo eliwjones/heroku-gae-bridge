@@ -112,9 +112,13 @@ class GaeDatastoreWrapper(object):
         return prepped_doc
 
     @db.strong_consistency_option
-    def put(self, table, document):
+    def put(self, table, document, replace = True):
         if document is None or table is None:
             return
+	if not replace:
+            # App engine datastore replaces by default so must verify non-existence.
+            if self.get(table, { '_id' : document['_id'] }, keys_only = True):
+                raise self.DuplicateKeyError('', '')
         document = self.prep_document(table, document)
         return document.put().id()
 
